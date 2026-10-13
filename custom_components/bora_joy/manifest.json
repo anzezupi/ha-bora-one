@@ -1,0 +1,13 @@
+{
+  "domain": "bora_joy",
+  "name": "BORA JOY",
+  "codeowners": ["@anzezupi"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/anzezupi/ha-bora-joy",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/anzezupi/ha-bora-joy/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

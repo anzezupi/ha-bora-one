@@ -1,0 +1,278 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect BORA JOY",
+        "description": "Log in with your BORA JOY account, or add a simulated cooktop to build dashboards before the cloud API is available.",
+        "menu_options": {
+          "cloud": "BORA JOY account",
+          "demo": "Demo cooktop (simulated)"
+        }
+      },
+      "cloud": {
+        "title": "BORA JOY account",
+        "description": "Use the same credentials as in the BORA JOY app.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "Enter the new password for {username}.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "api_not_available": "The BORA JOY cloud API is not implemented yet. Use demo mode for now.",
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Cannot reach the BORA cloud.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Re-authentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "cooking": {
+        "name": "Cooking"
+      },
+      "paused": {
+        "name": "Paused"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "cleaning_lock": {
+        "name": "Cleaning lock"
+      },
+      "extractor_running": {
+        "name": "Extractor running"
+      },
+      "filter_service": {
+        "name": "Filter service"
+      },
+      "residual_heat": {
+        "name": "Residual heat"
+      },
+      "front_left_active": {
+        "name": "Front left active"
+      },
+      "front_left_residual_heat": {
+        "name": "Front left residual heat"
+      },
+      "front_left_pan_detected": {
+        "name": "Front left pan detected"
+      },
+      "rear_left_active": {
+        "name": "Rear left active"
+      },
+      "rear_left_residual_heat": {
+        "name": "Rear left residual heat"
+      },
+      "rear_left_pan_detected": {
+        "name": "Rear left pan detected"
+      },
+      "front_right_active": {
+        "name": "Front right active"
+      },
+      "front_right_residual_heat": {
+        "name": "Front right residual heat"
+      },
+      "front_right_pan_detected": {
+        "name": "Front right pan detected"
+      },
+      "rear_right_active": {
+        "name": "Rear right active"
+      },
+      "rear_right_residual_heat": {
+        "name": "Rear right residual heat"
+      },
+      "rear_right_pan_detected": {
+        "name": "Rear right pan detected"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "off": "Off",
+          "standby": "Standby",
+          "cooking": "Cooking",
+          "paused": "Paused",
+          "after_run": "After-run",
+          "offline": "Offline"
+        }
+      },
+      "active_zones": {
+        "name": "Active zones"
+      },
+      "short_timer_end": {
+        "name": "Short timer end"
+      },
+      "extractor_mode": {
+        "name": "Extractor mode",
+        "state": {
+          "off": "Off",
+          "manual": "Manual",
+          "automatic": "Automatic",
+          "power_boost": "Power boost",
+          "after_run": "After-run"
+        }
+      },
+      "extractor_fan_level": {
+        "name": "Extractor fan level"
+      },
+      "after_run_end": {
+        "name": "After-run end"
+      },
+      "filter_remaining": {
+        "name": "Odour filter remaining"
+      },
+      "front_left_state": {
+        "name": "Front left state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost",
+          "keep_warm": "Keep warm",
+          "assist": "Assist",
+          "paused": "Paused",
+          "no_pan": "No pan",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "front_left_power_level": {
+        "name": "Front left power level"
+      },
+      "front_left_timer_end": {
+        "name": "Front left timer end"
+      },
+      "front_left_assist_program": {
+        "name": "Front left Assist programme",
+        "state": {
+          "none": "None",
+          "fry": "Fry",
+          "boil": "Boil",
+          "other": "Other"
+        }
+      },
+      "front_left_assist_target_temperature": {
+        "name": "Front left Assist target temperature"
+      },
+      "rear_left_state": {
+        "name": "Rear left state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost",
+          "keep_warm": "Keep warm",
+          "assist": "Assist",
+          "paused": "Paused",
+          "no_pan": "No pan",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "rear_left_power_level": {
+        "name": "Rear left power level"
+      },
+      "rear_left_timer_end": {
+        "name": "Rear left timer end"
+      },
+      "rear_left_assist_program": {
+        "name": "Rear left Assist programme",
+        "state": {
+          "none": "None",
+          "fry": "Fry",
+          "boil": "Boil",
+          "other": "Other"
+        }
+      },
+      "rear_left_assist_target_temperature": {
+        "name": "Rear left Assist target temperature"
+      },
+      "front_right_state": {
+        "name": "Front right state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost",
+          "keep_warm": "Keep warm",
+          "assist": "Assist",
+          "paused": "Paused",
+          "no_pan": "No pan",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "front_right_power_level": {
+        "name": "Front right power level"
+      },
+      "front_right_timer_end": {
+        "name": "Front right timer end"
+      },
+      "front_right_assist_program": {
+        "name": "Front right Assist programme",
+        "state": {
+          "none": "None",
+          "fry": "Fry",
+          "boil": "Boil",
+          "other": "Other"
+        }
+      },
+      "front_right_assist_target_temperature": {
+        "name": "Front right Assist target temperature"
+      },
+      "rear_right_state": {
+        "name": "Rear right state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost",
+          "keep_warm": "Keep warm",
+          "assist": "Assist",
+          "paused": "Paused",
+          "no_pan": "No pan",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "rear_right_power_level": {
+        "name": "Rear right power level"
+      },
+      "rear_right_timer_end": {
+        "name": "Rear right timer end"
+      },
+      "rear_right_assist_program": {
+        "name": "Rear right Assist programme",
+        "state": {
+          "none": "None",
+          "fry": "Fry",
+          "boil": "Boil",
+          "other": "Other"
+        }
+      },
+      "rear_right_assist_target_temperature": {
+        "name": "Rear right Assist target temperature"
+      }
+    }
+  }
+}

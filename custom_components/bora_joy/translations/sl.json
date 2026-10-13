@@ -1,0 +1,278 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Povezava BORA JOY",
+        "description": "Prijavite se z računom BORA JOY ali dodajte simulirano ploščo za izdelavo nadzornih plošč, preden je oblačni API na voljo.",
+        "menu_options": {
+          "cloud": "Račun BORA JOY",
+          "demo": "Demo plošča (simulacija)"
+        }
+      },
+      "cloud": {
+        "title": "Račun BORA JOY",
+        "description": "Uporabite iste podatke kot v aplikaciji BORA JOY.",
+        "data": {
+          "username": "E-pošta",
+          "password": "Geslo"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponovna prijava",
+        "description": "Vnesite novo geslo za {username}.",
+        "data": {
+          "password": "Geslo"
+        }
+      }
+    },
+    "error": {
+      "api_not_available": "Oblačni API BORA JOY še ni implementiran. Zaenkrat uporabite demo način.",
+      "invalid_auth": "Napačen e-poštni naslov ali geslo.",
+      "cannot_connect": "Oblaka BORA ni mogoče doseči.",
+      "unknown": "Nepričakovana napaka."
+    },
+    "abort": {
+      "already_configured": "Ta račun je že nastavljen.",
+      "reauth_successful": "Ponovna prijava uspešna."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Možnosti",
+        "data": {
+          "scan_interval": "Interval osveževanja (sekunde)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Povezava"
+      },
+      "power": {
+        "name": "Vklop"
+      },
+      "cooking": {
+        "name": "Kuhanje"
+      },
+      "paused": {
+        "name": "Pavza"
+      },
+      "child_lock": {
+        "name": "Otroška zaščita"
+      },
+      "cleaning_lock": {
+        "name": "Zaklep za čiščenje"
+      },
+      "extractor_running": {
+        "name": "Napa deluje"
+      },
+      "filter_service": {
+        "name": "Servis filtra"
+      },
+      "residual_heat": {
+        "name": "Preostala toplota"
+      },
+      "front_left_active": {
+        "name": "Spredaj levo aktivno"
+      },
+      "front_left_residual_heat": {
+        "name": "Spredaj levo preostala toplota"
+      },
+      "front_left_pan_detected": {
+        "name": "Spredaj levo posoda zaznana"
+      },
+      "rear_left_active": {
+        "name": "Zadaj levo aktivno"
+      },
+      "rear_left_residual_heat": {
+        "name": "Zadaj levo preostala toplota"
+      },
+      "rear_left_pan_detected": {
+        "name": "Zadaj levo posoda zaznana"
+      },
+      "front_right_active": {
+        "name": "Spredaj desno aktivno"
+      },
+      "front_right_residual_heat": {
+        "name": "Spredaj desno preostala toplota"
+      },
+      "front_right_pan_detected": {
+        "name": "Spredaj desno posoda zaznana"
+      },
+      "rear_right_active": {
+        "name": "Zadaj desno aktivno"
+      },
+      "rear_right_residual_heat": {
+        "name": "Zadaj desno preostala toplota"
+      },
+      "rear_right_pan_detected": {
+        "name": "Zadaj desno posoda zaznana"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "standby": "Pripravljenost",
+          "cooking": "Kuhanje",
+          "paused": "Pavza",
+          "after_run": "Naknadno delovanje",
+          "offline": "Brez povezave"
+        }
+      },
+      "active_zones": {
+        "name": "Aktivne cone"
+      },
+      "short_timer_end": {
+        "name": "Konec kratkega časovnika"
+      },
+      "extractor_mode": {
+        "name": "Način nape",
+        "state": {
+          "off": "Izklopljeno",
+          "manual": "Ročno",
+          "automatic": "Samodejno",
+          "power_boost": "Power (P)",
+          "after_run": "Naknadno delovanje"
+        }
+      },
+      "extractor_fan_level": {
+        "name": "Stopnja nape"
+      },
+      "after_run_end": {
+        "name": "Konec naknadnega delovanja"
+      },
+      "filter_remaining": {
+        "name": "Preostanek filtra vonjav"
+      },
+      "front_left_state": {
+        "name": "Spredaj levo stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "assist": "Assist",
+          "paused": "Pavza",
+          "no_pan": "Ni posode",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "front_left_power_level": {
+        "name": "Spredaj levo stopnja moči"
+      },
+      "front_left_timer_end": {
+        "name": "Spredaj levo konec časovnika"
+      },
+      "front_left_assist_program": {
+        "name": "Spredaj levo Assist program",
+        "state": {
+          "none": "Brez",
+          "fry": "Fry (cvrtje)",
+          "boil": "Boil (vretje)",
+          "other": "Drugo"
+        }
+      },
+      "front_left_assist_target_temperature": {
+        "name": "Spredaj levo Assist ciljna temperatura"
+      },
+      "rear_left_state": {
+        "name": "Zadaj levo stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "assist": "Assist",
+          "paused": "Pavza",
+          "no_pan": "Ni posode",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "rear_left_power_level": {
+        "name": "Zadaj levo stopnja moči"
+      },
+      "rear_left_timer_end": {
+        "name": "Zadaj levo konec časovnika"
+      },
+      "rear_left_assist_program": {
+        "name": "Zadaj levo Assist program",
+        "state": {
+          "none": "Brez",
+          "fry": "Fry (cvrtje)",
+          "boil": "Boil (vretje)",
+          "other": "Drugo"
+        }
+      },
+      "rear_left_assist_target_temperature": {
+        "name": "Zadaj levo Assist ciljna temperatura"
+      },
+      "front_right_state": {
+        "name": "Spredaj desno stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "assist": "Assist",
+          "paused": "Pavza",
+          "no_pan": "Ni posode",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "front_right_power_level": {
+        "name": "Spredaj desno stopnja moči"
+      },
+      "front_right_timer_end": {
+        "name": "Spredaj desno konec časovnika"
+      },
+      "front_right_assist_program": {
+        "name": "Spredaj desno Assist program",
+        "state": {
+          "none": "Brez",
+          "fry": "Fry (cvrtje)",
+          "boil": "Boil (vretje)",
+          "other": "Drugo"
+        }
+      },
+      "front_right_assist_target_temperature": {
+        "name": "Spredaj desno Assist ciljna temperatura"
+      },
+      "rear_right_state": {
+        "name": "Zadaj desno stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "assist": "Assist",
+          "paused": "Pavza",
+          "no_pan": "Ni posode",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "rear_right_power_level": {
+        "name": "Zadaj desno stopnja moči"
+      },
+      "rear_right_timer_end": {
+        "name": "Zadaj desno konec časovnika"
+      },
+      "rear_right_assist_program": {
+        "name": "Zadaj desno Assist program",
+        "state": {
+          "none": "Brez",
+          "fry": "Fry (cvrtje)",
+          "boil": "Boil (vretje)",
+          "other": "Drugo"
+        }
+      },
+      "rear_right_assist_target_temperature": {
+        "name": "Zadaj desno Assist ciljna temperatura"
+      }
+    }
+  }
+}
