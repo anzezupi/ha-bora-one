@@ -1,0 +1,497 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Dodaj BORA One",
+        "description": "Povežite BORA ploščo prek Bluetootha ali dodajte simulirano ploščo za preizkus integracije.",
+        "menu_options": {
+          "bluetooth_pick": "BORA plošča (Bluetooth)",
+          "demo": "Demo plošča (simulacija)"
+        }
+      },
+      "bluetooth_pick": {
+        "title": "Izberite ploščo",
+        "data": {
+          "address": "Plošča"
+        }
+      },
+      "pair": {
+        "title": "Seznanjanje z {name}",
+        "description": "1. Vklopite ploščo in preverite, da je povezljivost vklopljena (tipka Connect sveti).\n2. Na telefonu z aplikacijo BORA One izklopite Bluetooth, da je plošča prosta.\n3. Pritisnite **Pošlji**, nato v približno 30 sekundah na plošči tapnite utripajočo tipko **Connect** za potrditev seznanjanja.\n\nHome Assistant stanje plošče samo bere, nikoli je ne upravlja."
+      }
+    },
+    "error": {
+      "pairing_failed": "Seznanjanje na plošči ni bilo potrjeno. Poskusite znova in tapnite tipko Connect.",
+      "cannot_connect": "Povezava ni uspela. Plošča mora biti vklopljena, blizu in ne povezana z aplikacijo na telefonu.",
+      "unknown": "Nepričakovana napaka."
+    },
+    "abort": {
+      "already_configured": "Ta plošča je že nastavljena.",
+      "no_devices_found": "BORA plošča ni najdena. Vklopite ploščo in preverite, da ima Home Assistant v bližini Bluetooth adapter ali proxy.",
+      "not_supported": "Ta naprava ni podprta BORA plošča.",
+      "reauth_successful": "Seznanjanje obnovljeno."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Bluetooth povezava"
+      },
+      "cooking": {
+        "name": "Kuhanje"
+      },
+      "residual_heat": {
+        "name": "Preostala toplota"
+      },
+      "paused": {
+        "name": "Pavza"
+      },
+      "child_lock": {
+        "name": "Otroška zaščita"
+      },
+      "cleaning_lock": {
+        "name": "Zaklep za čiščenje"
+      },
+      "problem": {
+        "name": "Napaka"
+      },
+      "extractor_running": {
+        "name": "Napa deluje"
+      },
+      "filter_service": {
+        "name": "Menjava filtra vonjav"
+      },
+      "front_left_active": {
+        "name": "Spredaj levo aktivno"
+      },
+      "front_left_residual_heat": {
+        "name": "Spredaj levo preostala toplota"
+      },
+      "front_left_assist_confirmation": {
+        "name": "Spredaj levo Assist čaka potrditev"
+      },
+      "back_left_active": {
+        "name": "Zadaj levo aktivno"
+      },
+      "back_left_residual_heat": {
+        "name": "Zadaj levo preostala toplota"
+      },
+      "back_left_assist_confirmation": {
+        "name": "Zadaj levo Assist čaka potrditev"
+      },
+      "back_right_active": {
+        "name": "Zadaj desno aktivno"
+      },
+      "back_right_residual_heat": {
+        "name": "Zadaj desno preostala toplota"
+      },
+      "back_right_assist_confirmation": {
+        "name": "Zadaj desno Assist čaka potrditev"
+      },
+      "front_right_active": {
+        "name": "Spredaj desno aktivno"
+      },
+      "front_right_residual_heat": {
+        "name": "Spredaj desno preostala toplota"
+      },
+      "front_right_assist_confirmation": {
+        "name": "Spredaj desno Assist čaka potrditev"
+      },
+      "mid_back_active": {
+        "name": "Sredina zadaj aktivno"
+      },
+      "mid_back_residual_heat": {
+        "name": "Sredina zadaj preostala toplota"
+      },
+      "mid_back_assist_confirmation": {
+        "name": "Sredina zadaj Assist čaka potrditev"
+      },
+      "mid_front_active": {
+        "name": "Sredina spredaj aktivno"
+      },
+      "mid_front_residual_heat": {
+        "name": "Sredina spredaj preostala toplota"
+      },
+      "mid_front_assist_confirmation": {
+        "name": "Sredina spredaj Assist čaka potrditev"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "standby": "Pripravljenost",
+          "cooking": "Kuhanje",
+          "paused": "Pavza",
+          "after_run": "Naknadno delovanje",
+          "error": "Napaka"
+        }
+      },
+      "active_zones": {
+        "name": "Aktivne cone"
+      },
+      "error": {
+        "name": "Koda napake"
+      },
+      "extractor_mode": {
+        "name": "Način nape",
+        "state": {
+          "off": "Izklopljeno",
+          "manual": "Ročno",
+          "automatic": "Samodejno",
+          "power_boost": "Power (P)",
+          "after_run": "Naknadno delovanje"
+        }
+      },
+      "extractor_fan_level": {
+        "name": "Stopnja nape"
+      },
+      "after_run_end": {
+        "name": "Konec naknadnega delovanja"
+      },
+      "after_run_duration": {
+        "name": "Trajanje naknadnega delovanja"
+      },
+      "filter_lifetime": {
+        "name": "Življenjska doba filtra vonjav (surovo)"
+      },
+      "front_left_state": {
+        "name": "Spredaj levo stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "heat_up": "Samodejno segrevanje",
+          "assist": "Assist",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "front_left_power_level": {
+        "name": "Spredaj levo stopnja moči"
+      },
+      "front_left_timer_end": {
+        "name": "Spredaj levo konec časovnika"
+      },
+      "front_left_keep_warm_mode": {
+        "name": "Spredaj levo ohranjanje toplote",
+        "state": {
+          "none": "Brez",
+          "melting": "Taljenje",
+          "keep_warm": "Ohranjanje toplote",
+          "simmering": "Rahlo vretje"
+        }
+      },
+      "front_left_assist_program": {
+        "name": "Spredaj levo Assist program",
+        "state": {
+          "none": "Brez",
+          "pasta": "Vretje (testenine)",
+          "frying": "Cvrtje",
+          "grill": "Žar",
+          "steamer": "Kuhanje na pari",
+          "quickstart": "Hitri začetek",
+          "warming": "Pogrevanje",
+          "coffee": "Kava",
+          "hold": "Zadrževanje",
+          "other": "Drugo"
+        }
+      },
+      "front_left_assist_phase": {
+        "name": "Spredaj levo Assist faza",
+        "state": {
+          "none": "Brez",
+          "preheat": "Predgrevanje",
+          "confirmation_required": "Čaka potrditev",
+          "active": "Aktivno",
+          "expired": "Končano"
+        }
+      },
+      "front_left_assist_target_temperature": {
+        "name": "Spredaj levo Assist ciljna temperatura"
+      },
+      "back_left_state": {
+        "name": "Zadaj levo stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "heat_up": "Samodejno segrevanje",
+          "assist": "Assist",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "back_left_power_level": {
+        "name": "Zadaj levo stopnja moči"
+      },
+      "back_left_timer_end": {
+        "name": "Zadaj levo konec časovnika"
+      },
+      "back_left_keep_warm_mode": {
+        "name": "Zadaj levo ohranjanje toplote",
+        "state": {
+          "none": "Brez",
+          "melting": "Taljenje",
+          "keep_warm": "Ohranjanje toplote",
+          "simmering": "Rahlo vretje"
+        }
+      },
+      "back_left_assist_program": {
+        "name": "Zadaj levo Assist program",
+        "state": {
+          "none": "Brez",
+          "pasta": "Vretje (testenine)",
+          "frying": "Cvrtje",
+          "grill": "Žar",
+          "steamer": "Kuhanje na pari",
+          "quickstart": "Hitri začetek",
+          "warming": "Pogrevanje",
+          "coffee": "Kava",
+          "hold": "Zadrževanje",
+          "other": "Drugo"
+        }
+      },
+      "back_left_assist_phase": {
+        "name": "Zadaj levo Assist faza",
+        "state": {
+          "none": "Brez",
+          "preheat": "Predgrevanje",
+          "confirmation_required": "Čaka potrditev",
+          "active": "Aktivno",
+          "expired": "Končano"
+        }
+      },
+      "back_left_assist_target_temperature": {
+        "name": "Zadaj levo Assist ciljna temperatura"
+      },
+      "back_right_state": {
+        "name": "Zadaj desno stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "heat_up": "Samodejno segrevanje",
+          "assist": "Assist",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "back_right_power_level": {
+        "name": "Zadaj desno stopnja moči"
+      },
+      "back_right_timer_end": {
+        "name": "Zadaj desno konec časovnika"
+      },
+      "back_right_keep_warm_mode": {
+        "name": "Zadaj desno ohranjanje toplote",
+        "state": {
+          "none": "Brez",
+          "melting": "Taljenje",
+          "keep_warm": "Ohranjanje toplote",
+          "simmering": "Rahlo vretje"
+        }
+      },
+      "back_right_assist_program": {
+        "name": "Zadaj desno Assist program",
+        "state": {
+          "none": "Brez",
+          "pasta": "Vretje (testenine)",
+          "frying": "Cvrtje",
+          "grill": "Žar",
+          "steamer": "Kuhanje na pari",
+          "quickstart": "Hitri začetek",
+          "warming": "Pogrevanje",
+          "coffee": "Kava",
+          "hold": "Zadrževanje",
+          "other": "Drugo"
+        }
+      },
+      "back_right_assist_phase": {
+        "name": "Zadaj desno Assist faza",
+        "state": {
+          "none": "Brez",
+          "preheat": "Predgrevanje",
+          "confirmation_required": "Čaka potrditev",
+          "active": "Aktivno",
+          "expired": "Končano"
+        }
+      },
+      "back_right_assist_target_temperature": {
+        "name": "Zadaj desno Assist ciljna temperatura"
+      },
+      "front_right_state": {
+        "name": "Spredaj desno stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "heat_up": "Samodejno segrevanje",
+          "assist": "Assist",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "front_right_power_level": {
+        "name": "Spredaj desno stopnja moči"
+      },
+      "front_right_timer_end": {
+        "name": "Spredaj desno konec časovnika"
+      },
+      "front_right_keep_warm_mode": {
+        "name": "Spredaj desno ohranjanje toplote",
+        "state": {
+          "none": "Brez",
+          "melting": "Taljenje",
+          "keep_warm": "Ohranjanje toplote",
+          "simmering": "Rahlo vretje"
+        }
+      },
+      "front_right_assist_program": {
+        "name": "Spredaj desno Assist program",
+        "state": {
+          "none": "Brez",
+          "pasta": "Vretje (testenine)",
+          "frying": "Cvrtje",
+          "grill": "Žar",
+          "steamer": "Kuhanje na pari",
+          "quickstart": "Hitri začetek",
+          "warming": "Pogrevanje",
+          "coffee": "Kava",
+          "hold": "Zadrževanje",
+          "other": "Drugo"
+        }
+      },
+      "front_right_assist_phase": {
+        "name": "Spredaj desno Assist faza",
+        "state": {
+          "none": "Brez",
+          "preheat": "Predgrevanje",
+          "confirmation_required": "Čaka potrditev",
+          "active": "Aktivno",
+          "expired": "Končano"
+        }
+      },
+      "front_right_assist_target_temperature": {
+        "name": "Spredaj desno Assist ciljna temperatura"
+      },
+      "mid_back_state": {
+        "name": "Sredina zadaj stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "heat_up": "Samodejno segrevanje",
+          "assist": "Assist",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "mid_back_power_level": {
+        "name": "Sredina zadaj stopnja moči"
+      },
+      "mid_back_timer_end": {
+        "name": "Sredina zadaj konec časovnika"
+      },
+      "mid_back_keep_warm_mode": {
+        "name": "Sredina zadaj ohranjanje toplote",
+        "state": {
+          "none": "Brez",
+          "melting": "Taljenje",
+          "keep_warm": "Ohranjanje toplote",
+          "simmering": "Rahlo vretje"
+        }
+      },
+      "mid_back_assist_program": {
+        "name": "Sredina zadaj Assist program",
+        "state": {
+          "none": "Brez",
+          "pasta": "Vretje (testenine)",
+          "frying": "Cvrtje",
+          "grill": "Žar",
+          "steamer": "Kuhanje na pari",
+          "quickstart": "Hitri začetek",
+          "warming": "Pogrevanje",
+          "coffee": "Kava",
+          "hold": "Zadrževanje",
+          "other": "Drugo"
+        }
+      },
+      "mid_back_assist_phase": {
+        "name": "Sredina zadaj Assist faza",
+        "state": {
+          "none": "Brez",
+          "preheat": "Predgrevanje",
+          "confirmation_required": "Čaka potrditev",
+          "active": "Aktivno",
+          "expired": "Končano"
+        }
+      },
+      "mid_back_assist_target_temperature": {
+        "name": "Sredina zadaj Assist ciljna temperatura"
+      },
+      "mid_front_state": {
+        "name": "Sredina spredaj stanje",
+        "state": {
+          "off": "Izklopljeno",
+          "on": "Vklopljeno",
+          "power_boost": "Power (P)",
+          "keep_warm": "Ohranjanje toplote",
+          "heat_up": "Samodejno segrevanje",
+          "assist": "Assist",
+          "residual_heat": "Preostala toplota"
+        }
+      },
+      "mid_front_power_level": {
+        "name": "Sredina spredaj stopnja moči"
+      },
+      "mid_front_timer_end": {
+        "name": "Sredina spredaj konec časovnika"
+      },
+      "mid_front_keep_warm_mode": {
+        "name": "Sredina spredaj ohranjanje toplote",
+        "state": {
+          "none": "Brez",
+          "melting": "Taljenje",
+          "keep_warm": "Ohranjanje toplote",
+          "simmering": "Rahlo vretje"
+        }
+      },
+      "mid_front_assist_program": {
+        "name": "Sredina spredaj Assist program",
+        "state": {
+          "none": "Brez",
+          "pasta": "Vretje (testenine)",
+          "frying": "Cvrtje",
+          "grill": "Žar",
+          "steamer": "Kuhanje na pari",
+          "quickstart": "Hitri začetek",
+          "warming": "Pogrevanje",
+          "coffee": "Kava",
+          "hold": "Zadrževanje",
+          "other": "Drugo"
+        }
+      },
+      "mid_front_assist_phase": {
+        "name": "Sredina spredaj Assist faza",
+        "state": {
+          "none": "Brez",
+          "preheat": "Predgrevanje",
+          "confirmation_required": "Čaka potrditev",
+          "active": "Aktivno",
+          "expired": "Končano"
+        }
+      },
+      "mid_front_assist_target_temperature": {
+        "name": "Sredina spredaj Assist ciljna temperatura"
+      }
+    },
+    "switch": {
+      "bluetooth_connection": {
+        "name": "Dovoli Bluetooth povezavo"
+      }
+    }
+  }
+}

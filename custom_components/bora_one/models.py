@@ -1,7 +1,7 @@
 """Data models for BORA cooktops.
 
-These models are intentionally independent of Home Assistant so they can be
-unit-tested and reused. The cloud client maps raw API payloads onto them.
+These models are independent of Home Assistant. ``mapper.py`` builds them from
+the decoded Bluetooth status; ``demo.py`` builds them from a simulation.
 """
 
 from __future__ import annotations
@@ -12,12 +12,14 @@ from typing import Any
 
 
 class ZonePosition(StrEnum):
-    """Physical position of a cooking zone (BORA Pure / X Pure layout)."""
+    """Physical position of a cooking zone, named like the BORA zone UIDs."""
 
     FRONT_LEFT = "front_left"
-    REAR_LEFT = "rear_left"
+    BACK_LEFT = "back_left"
+    BACK_RIGHT = "back_right"
     FRONT_RIGHT = "front_right"
-    REAR_RIGHT = "rear_right"
+    MID_BACK = "mid_back"
+    MID_FRONT = "mid_front"
 
 
 class ZoneState(StrEnum):
@@ -27,19 +29,42 @@ class ZoneState(StrEnum):
     ON = "on"
     POWER_BOOST = "power_boost"
     KEEP_WARM = "keep_warm"
+    HEAT_UP = "heat_up"
     ASSIST = "assist"
-    PAUSED = "paused"
-    NO_PAN = "no_pan"
     RESIDUAL_HEAT = "residual_heat"
 
 
 class AssistProgram(StrEnum):
-    """BORA Assist programmes."""
+    """BORA Assist (cooking support function) programmes."""
 
     NONE = "none"
-    FRY = "fry"
-    BOIL = "boil"
+    PASTA = "pasta"
+    FRYING = "frying"
+    GRILL = "grill"
+    STEAMER = "steamer"
+    QUICKSTART = "quickstart"
+    WARMING = "warming"
+    COFFEE = "coffee"
+    HOLD = "hold"
     OTHER = "other"
+
+
+class AssistPhase(StrEnum):
+    """Phase of a running Assist programme."""
+
+    NONE = "none"
+    PREHEAT = "preheat"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+    ACTIVE = "active"
+    EXPIRED = "expired"
+
+
+class KeepWarmMode(StrEnum):
+    """Heat retention level."""
+
+    MELTING = "melting"
+    KEEP_WARM = "keep_warm"
+    SIMMERING = "simmering"
 
 
 class ExtractorMode(StrEnum):
@@ -58,16 +83,16 @@ class CookingZone:
 
     position: ZonePosition
     state: ZoneState = ZoneState.OFF
-    power_level: int = 0
+    power_level: int | None = 0
     """Power level 0-9. Power boost (P) is reported as 9 with state POWER_BOOST."""
     residual_heat: bool = False
-    pan_detected: bool | None = None
     timer_remaining: int | None = None
-    """Seconds left on the cooking zone timer, None when no timer is running."""
+    """Seconds left on a running zone timer, None when no timer is running."""
+    keep_warm_mode: KeepWarmMode | None = None
     assist_program: AssistProgram = AssistProgram.NONE
+    assist_phase: AssistPhase = AssistPhase.NONE
     assist_target_temperature: int | None = None
-    """Fry target temperature in degC (120-220 in 20 degC steps)."""
-    assist_target_reached: bool | None = None
+    """Frying target temperature in degC."""
 
     @property
     def is_active(self) -> bool:
@@ -76,7 +101,19 @@ class CookingZone:
             ZoneState.ON,
             ZoneState.POWER_BOOST,
             ZoneState.KEEP_WARM,
+            ZoneState.HEAT_UP,
             ZoneState.ASSIST,
+        )
+
+    @property
+    def assist_target_reached(self) -> bool | None:
+        """Return True once a frying Assist has reached its temperature."""
+        if self.assist_program is not AssistProgram.FRYING:
+            return None
+        return self.assist_phase in (
+            AssistPhase.CONFIRMATION_REQUIRED,
+            AssistPhase.ACTIVE,
+            AssistPhase.EXPIRED,
         )
 
 
@@ -85,25 +122,28 @@ class Extractor:
     """State of the integrated cooktop extractor."""
 
     mode: ExtractorMode = ExtractorMode.OFF
-    fan_level: int = 0
-    """Fan level 0-9. Power boost (P) is reported as 9 with mode POWER_BOOST."""
+    fan_level: int | None = 0
+    """Fan level; None in automatic mode. Boost (P) reports the highest level."""
     after_run_remaining: int | None = None
     """Seconds left of the automatic after-run, None when not running."""
-    filter_remaining_percent: int | None = None
-    """Odour filter life left (recirculation models only)."""
+    after_run_duration: int | None = None
+    """Configured after-run duration in minutes."""
     filter_service_required: bool | None = None
+    """Odour filter change needed (recirculation models only)."""
+    filter_lifetime_raw: int | None = None
+    """Remaining odour filter lifetime as reported, unit not confirmed."""
 
     @property
     def is_running(self) -> bool:
         """Return True when the fan is running."""
-        return self.mode is not ExtractorMode.OFF and (
-            self.fan_level > 0 or self.mode is ExtractorMode.AFTER_RUN
-        )
+        if self.mode in (ExtractorMode.AUTOMATIC, ExtractorMode.AFTER_RUN):
+            return True
+        return bool(self.fan_level)
 
 
 @dataclass(slots=True)
 class Cooktop:
-    """A connected BORA cooktop (with or without extractor)."""
+    """A BORA cooktop."""
 
     appliance_id: str
     name: str
@@ -112,16 +152,16 @@ class Cooktop:
     software_version: str | None = None
     hardware_version: str | None = None
     online: bool = True
-    powered_on: bool = False
+    """Connected over Bluetooth. X Pure turns Bluetooth off shortly after
+    being switched off, so offline normally means switched off."""
+    paused: bool = False
     child_lock: bool = False
     cleaning_lock: bool = False
-    paused: bool = False
-    short_timer_remaining: int | None = None
-    """Seconds left on the egg-timer (short-time timer)."""
+    errors: list[str] = field(default_factory=list)
     zones: dict[ZonePosition, CookingZone] = field(default_factory=dict)
     extractor: Extractor | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
-    """Untouched payload from the API, exposed via diagnostics."""
+    """Decoded protocol data, exposed via diagnostics."""
 
     @property
     def active_zone_count(self) -> int:
@@ -132,3 +172,8 @@ class Cooktop:
     def is_cooking(self) -> bool:
         """Return True when at least one zone is heating."""
         return self.active_zone_count > 0
+
+    @property
+    def has_residual_heat(self) -> bool:
+        """Return True when any zone is still hot."""
+        return any(zone.residual_heat for zone in self.zones.values())

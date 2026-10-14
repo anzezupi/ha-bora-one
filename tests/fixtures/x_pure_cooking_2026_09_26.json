@@ -1,0 +1,19 @@
+{
+  "description": "Selected decoded BRPC response payloads from user-confirmed cooking observation; serial/model information and Bluetooth identities omitted. Frame CRC checked in the private capture before payload extraction. Error request path inferred from known client polling order.",
+  "model": "X PURE PUXU2R",
+  "firmware": "3.0.9",
+  "responses": {
+    "back_left_power_7": {
+      "response_payload_hex": "180522130a110a096261636b5f6c656674120208071a003801"
+    },
+    "after_run_start": {
+      "response_payload_hex": "180322100a0a0a00120210011a02080410c0ee6d3801"
+    },
+    "back_left_power_0": {
+      "response_payload_hex": "180522150a110a096261636b5f6c656674120208001a0018013801"
+    },
+    "zone_unavailable": {
+      "response_payload_hex": "100e184a2a130a116e6f206d61705f6974656d20666f756e64"
+    }
+  }
+}

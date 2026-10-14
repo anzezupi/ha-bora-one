@@ -1,0 +1,497 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Add BORA One",
+        "description": "Connect a BORA cooktop over Bluetooth, or add a simulated cooktop to try the integration.",
+        "menu_options": {
+          "bluetooth_pick": "BORA cooktop (Bluetooth)",
+          "demo": "Demo cooktop (simulated)"
+        }
+      },
+      "bluetooth_pick": {
+        "title": "Choose your cooktop",
+        "data": {
+          "address": "Cooktop"
+        }
+      },
+      "pair": {
+        "title": "Pair with {name}",
+        "description": "1. Switch the cooktop on and make sure connectivity is enabled (Connect button lit).\n2. Turn off Bluetooth on the phone with the BORA One app, so the cooktop is free.\n3. Press **Submit**, then tap the pulsing **Connect** button on the cooktop to confirm pairing within about 30 seconds.\n\nHome Assistant only reads the cooktop status; it never controls it."
+      }
+    },
+    "error": {
+      "pairing_failed": "Pairing was not confirmed on the cooktop. Try again and tap the Connect button.",
+      "cannot_connect": "Could not connect. Make sure the cooktop is on, nearby and not connected to the phone app.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This cooktop is already configured.",
+      "no_devices_found": "No BORA cooktop found. Switch the cooktop on and check that Home Assistant has a Bluetooth adapter or proxy nearby.",
+      "not_supported": "This device is not a supported BORA cooktop.",
+      "reauth_successful": "Pairing renewed."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "online": {
+        "name": "Bluetooth connection"
+      },
+      "cooking": {
+        "name": "Cooking"
+      },
+      "residual_heat": {
+        "name": "Residual heat"
+      },
+      "paused": {
+        "name": "Paused"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "cleaning_lock": {
+        "name": "Cleaning lock"
+      },
+      "problem": {
+        "name": "Error"
+      },
+      "extractor_running": {
+        "name": "Extractor running"
+      },
+      "filter_service": {
+        "name": "Odour filter change"
+      },
+      "front_left_active": {
+        "name": "Front left active"
+      },
+      "front_left_residual_heat": {
+        "name": "Front left residual heat"
+      },
+      "front_left_assist_confirmation": {
+        "name": "Front left Assist confirmation required"
+      },
+      "back_left_active": {
+        "name": "Back left active"
+      },
+      "back_left_residual_heat": {
+        "name": "Back left residual heat"
+      },
+      "back_left_assist_confirmation": {
+        "name": "Back left Assist confirmation required"
+      },
+      "back_right_active": {
+        "name": "Back right active"
+      },
+      "back_right_residual_heat": {
+        "name": "Back right residual heat"
+      },
+      "back_right_assist_confirmation": {
+        "name": "Back right Assist confirmation required"
+      },
+      "front_right_active": {
+        "name": "Front right active"
+      },
+      "front_right_residual_heat": {
+        "name": "Front right residual heat"
+      },
+      "front_right_assist_confirmation": {
+        "name": "Front right Assist confirmation required"
+      },
+      "mid_back_active": {
+        "name": "Middle back active"
+      },
+      "mid_back_residual_heat": {
+        "name": "Middle back residual heat"
+      },
+      "mid_back_assist_confirmation": {
+        "name": "Middle back Assist confirmation required"
+      },
+      "mid_front_active": {
+        "name": "Middle front active"
+      },
+      "mid_front_residual_heat": {
+        "name": "Middle front residual heat"
+      },
+      "mid_front_assist_confirmation": {
+        "name": "Middle front Assist confirmation required"
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "off": "Off",
+          "standby": "Standby",
+          "cooking": "Cooking",
+          "paused": "Paused",
+          "after_run": "After-run",
+          "error": "Error"
+        }
+      },
+      "active_zones": {
+        "name": "Active zones"
+      },
+      "error": {
+        "name": "Error code"
+      },
+      "extractor_mode": {
+        "name": "Extractor mode",
+        "state": {
+          "off": "Off",
+          "manual": "Manual",
+          "automatic": "Automatic",
+          "power_boost": "Power boost (P)",
+          "after_run": "After-run"
+        }
+      },
+      "extractor_fan_level": {
+        "name": "Extractor fan level"
+      },
+      "after_run_end": {
+        "name": "After-run end"
+      },
+      "after_run_duration": {
+        "name": "After-run duration"
+      },
+      "filter_lifetime": {
+        "name": "Odour filter lifetime (raw)"
+      },
+      "front_left_state": {
+        "name": "Front left state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost (P)",
+          "keep_warm": "Keep warm",
+          "heat_up": "Automatic heat-up",
+          "assist": "Assist",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "front_left_power_level": {
+        "name": "Front left power level"
+      },
+      "front_left_timer_end": {
+        "name": "Front left timer end"
+      },
+      "front_left_keep_warm_mode": {
+        "name": "Front left keep warm",
+        "state": {
+          "none": "None",
+          "melting": "Melting",
+          "keep_warm": "Keep warm",
+          "simmering": "Simmering"
+        }
+      },
+      "front_left_assist_program": {
+        "name": "Front left Assist programme",
+        "state": {
+          "none": "None",
+          "pasta": "Boil (pasta)",
+          "frying": "Fry",
+          "grill": "Grill",
+          "steamer": "Steam",
+          "quickstart": "Quick start",
+          "warming": "Warming",
+          "coffee": "Coffee",
+          "hold": "Hold",
+          "other": "Other"
+        }
+      },
+      "front_left_assist_phase": {
+        "name": "Front left Assist phase",
+        "state": {
+          "none": "None",
+          "preheat": "Preheating",
+          "confirmation_required": "Confirmation required",
+          "active": "Active",
+          "expired": "Finished"
+        }
+      },
+      "front_left_assist_target_temperature": {
+        "name": "Front left Assist target temperature"
+      },
+      "back_left_state": {
+        "name": "Back left state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost (P)",
+          "keep_warm": "Keep warm",
+          "heat_up": "Automatic heat-up",
+          "assist": "Assist",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "back_left_power_level": {
+        "name": "Back left power level"
+      },
+      "back_left_timer_end": {
+        "name": "Back left timer end"
+      },
+      "back_left_keep_warm_mode": {
+        "name": "Back left keep warm",
+        "state": {
+          "none": "None",
+          "melting": "Melting",
+          "keep_warm": "Keep warm",
+          "simmering": "Simmering"
+        }
+      },
+      "back_left_assist_program": {
+        "name": "Back left Assist programme",
+        "state": {
+          "none": "None",
+          "pasta": "Boil (pasta)",
+          "frying": "Fry",
+          "grill": "Grill",
+          "steamer": "Steam",
+          "quickstart": "Quick start",
+          "warming": "Warming",
+          "coffee": "Coffee",
+          "hold": "Hold",
+          "other": "Other"
+        }
+      },
+      "back_left_assist_phase": {
+        "name": "Back left Assist phase",
+        "state": {
+          "none": "None",
+          "preheat": "Preheating",
+          "confirmation_required": "Confirmation required",
+          "active": "Active",
+          "expired": "Finished"
+        }
+      },
+      "back_left_assist_target_temperature": {
+        "name": "Back left Assist target temperature"
+      },
+      "back_right_state": {
+        "name": "Back right state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost (P)",
+          "keep_warm": "Keep warm",
+          "heat_up": "Automatic heat-up",
+          "assist": "Assist",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "back_right_power_level": {
+        "name": "Back right power level"
+      },
+      "back_right_timer_end": {
+        "name": "Back right timer end"
+      },
+      "back_right_keep_warm_mode": {
+        "name": "Back right keep warm",
+        "state": {
+          "none": "None",
+          "melting": "Melting",
+          "keep_warm": "Keep warm",
+          "simmering": "Simmering"
+        }
+      },
+      "back_right_assist_program": {
+        "name": "Back right Assist programme",
+        "state": {
+          "none": "None",
+          "pasta": "Boil (pasta)",
+          "frying": "Fry",
+          "grill": "Grill",
+          "steamer": "Steam",
+          "quickstart": "Quick start",
+          "warming": "Warming",
+          "coffee": "Coffee",
+          "hold": "Hold",
+          "other": "Other"
+        }
+      },
+      "back_right_assist_phase": {
+        "name": "Back right Assist phase",
+        "state": {
+          "none": "None",
+          "preheat": "Preheating",
+          "confirmation_required": "Confirmation required",
+          "active": "Active",
+          "expired": "Finished"
+        }
+      },
+      "back_right_assist_target_temperature": {
+        "name": "Back right Assist target temperature"
+      },
+      "front_right_state": {
+        "name": "Front right state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost (P)",
+          "keep_warm": "Keep warm",
+          "heat_up": "Automatic heat-up",
+          "assist": "Assist",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "front_right_power_level": {
+        "name": "Front right power level"
+      },
+      "front_right_timer_end": {
+        "name": "Front right timer end"
+      },
+      "front_right_keep_warm_mode": {
+        "name": "Front right keep warm",
+        "state": {
+          "none": "None",
+          "melting": "Melting",
+          "keep_warm": "Keep warm",
+          "simmering": "Simmering"
+        }
+      },
+      "front_right_assist_program": {
+        "name": "Front right Assist programme",
+        "state": {
+          "none": "None",
+          "pasta": "Boil (pasta)",
+          "frying": "Fry",
+          "grill": "Grill",
+          "steamer": "Steam",
+          "quickstart": "Quick start",
+          "warming": "Warming",
+          "coffee": "Coffee",
+          "hold": "Hold",
+          "other": "Other"
+        }
+      },
+      "front_right_assist_phase": {
+        "name": "Front right Assist phase",
+        "state": {
+          "none": "None",
+          "preheat": "Preheating",
+          "confirmation_required": "Confirmation required",
+          "active": "Active",
+          "expired": "Finished"
+        }
+      },
+      "front_right_assist_target_temperature": {
+        "name": "Front right Assist target temperature"
+      },
+      "mid_back_state": {
+        "name": "Middle back state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost (P)",
+          "keep_warm": "Keep warm",
+          "heat_up": "Automatic heat-up",
+          "assist": "Assist",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "mid_back_power_level": {
+        "name": "Middle back power level"
+      },
+      "mid_back_timer_end": {
+        "name": "Middle back timer end"
+      },
+      "mid_back_keep_warm_mode": {
+        "name": "Middle back keep warm",
+        "state": {
+          "none": "None",
+          "melting": "Melting",
+          "keep_warm": "Keep warm",
+          "simmering": "Simmering"
+        }
+      },
+      "mid_back_assist_program": {
+        "name": "Middle back Assist programme",
+        "state": {
+          "none": "None",
+          "pasta": "Boil (pasta)",
+          "frying": "Fry",
+          "grill": "Grill",
+          "steamer": "Steam",
+          "quickstart": "Quick start",
+          "warming": "Warming",
+          "coffee": "Coffee",
+          "hold": "Hold",
+          "other": "Other"
+        }
+      },
+      "mid_back_assist_phase": {
+        "name": "Middle back Assist phase",
+        "state": {
+          "none": "None",
+          "preheat": "Preheating",
+          "confirmation_required": "Confirmation required",
+          "active": "Active",
+          "expired": "Finished"
+        }
+      },
+      "mid_back_assist_target_temperature": {
+        "name": "Middle back Assist target temperature"
+      },
+      "mid_front_state": {
+        "name": "Middle front state",
+        "state": {
+          "off": "Off",
+          "on": "On",
+          "power_boost": "Power boost (P)",
+          "keep_warm": "Keep warm",
+          "heat_up": "Automatic heat-up",
+          "assist": "Assist",
+          "residual_heat": "Residual heat"
+        }
+      },
+      "mid_front_power_level": {
+        "name": "Middle front power level"
+      },
+      "mid_front_timer_end": {
+        "name": "Middle front timer end"
+      },
+      "mid_front_keep_warm_mode": {
+        "name": "Middle front keep warm",
+        "state": {
+          "none": "None",
+          "melting": "Melting",
+          "keep_warm": "Keep warm",
+          "simmering": "Simmering"
+        }
+      },
+      "mid_front_assist_program": {
+        "name": "Middle front Assist programme",
+        "state": {
+          "none": "None",
+          "pasta": "Boil (pasta)",
+          "frying": "Fry",
+          "grill": "Grill",
+          "steamer": "Steam",
+          "quickstart": "Quick start",
+          "warming": "Warming",
+          "coffee": "Coffee",
+          "hold": "Hold",
+          "other": "Other"
+        }
+      },
+      "mid_front_assist_phase": {
+        "name": "Middle front Assist phase",
+        "state": {
+          "none": "None",
+          "preheat": "Preheating",
+          "confirmation_required": "Confirmation required",
+          "active": "Active",
+          "expired": "Finished"
+        }
+      },
+      "mid_front_assist_target_temperature": {
+        "name": "Middle front Assist target temperature"
+      }
+    },
+    "switch": {
+      "bluetooth_connection": {
+        "name": "Allow Bluetooth connection"
+      }
+    }
+  }
+}

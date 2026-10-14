@@ -1,77 +1,105 @@
-# BORA JOY for Home Assistant
+# BORA One for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
-[![Validate](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml)
+[![Validate](https://github.com/anzezupi/ha-bora-one/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-one/actions/workflows/validate.yml)
 [![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-0070BA.svg?logo=paypal)](https://paypal.me/anzezupi)
 
-Custom integration (HACS) that brings BORA cooktops connected to the
-**BORA JOY** app into Home Assistant: cooking zones, power levels, timers,
-BORA Assist, the cooktop extractor and the odour filter.
+Custom integration (HACS) that shows what your BORA cooktop is doing in Home
+Assistant: cooking zones, power levels, timers, BORA Assist, the cooktop
+extractor and the odour filter. It talks to the cooktop **locally over
+Bluetooth**, the same way the BORA One app does. No cloud account needed.
 
-> **Status: early development.** BORA has no public API. The cloud client is a
-> scaffold until the app's traffic has been mapped
-> ([docs/API_DISCOVERY.md](docs/API_DISCOVERY.md)). Use **demo mode** to try the
-> entities, dashboards and automations in the meantime.
+> **Status: early.** The protocol has been verified against recordings of a
+> real BORA X Pure, but this integration has not yet been tested on a real
+> cooktop inside Home Assistant. Reports are very welcome.
 
-Supported appliances: cooktops with connectivity (BORA Pure 2 / X Pure).
-Ovens (X BO) are not supported yet.
+The integration is **read-only**. It never switches anything on the cooktop.
+
+## How it works and why Bluetooth
+
+BORA cooktops (X Pure, Pure, S Pure, M Pure) connect to Wi-Fi only to send
+data to BORA's cloud (Microsoft Azure IoT Hub). They expose nothing on the
+local network, and the BORA One app reads the live status only over
+Bluetooth. This integration does the same.
+
+The cooktop turns Bluetooth off about a minute after it is switched off.
+That is normal: the integration then shows **Off** and reconnects as soon as
+the cooktop is switched on again.
+
+## Requirements
+
+- A Bluetooth adapter on the Home Assistant host **within range of the
+  cooktop** (a few metres), or an
+  [ESPHome Bluetooth proxy](https://esphome.github.io/bluetooth-proxies/) in
+  the kitchen. See the
+  [Home Assistant Bluetooth docs](https://www.home-assistant.io/integrations/bluetooth/)
+  for supported adapters.
+- Connectivity enabled on the cooktop (user menu item **Con**).
 
 ## Installation
 
-1. HACS → ⋮ → *Custom repositories* → add this repository as an *Integration*.
-2. Install **BORA JOY** and restart Home Assistant.
-3. *Settings → Devices & services → Add integration → BORA JOY*.
-4. Pick **BORA JOY account** or **Demo cooktop**.
+1. HACS → ⋮ → *Custom repositories* → add `https://github.com/anzezupi/ha-bora-one` as an *Integration*.
+2. Install **BORA One** and restart Home Assistant.
+3. Switch the cooktop on. Home Assistant should discover it; otherwise go to
+   *Settings → Devices & services → Add integration → BORA One*.
+4. Pairing: turn off Bluetooth on the phone with the BORA One app, press
+   **Submit**, then tap the pulsing **Connect** button on the cooktop.
 
-Manual install: copy `custom_components/bora_joy` into your
-`config/custom_components` folder.
+**One connection at a time:** the cooktop accepts one Bluetooth client. While
+Home Assistant is connected, the BORA One app cannot connect. Turn off the
+**Allow Bluetooth connection** switch of the device to let the app connect,
+and turn it on again afterwards.
+
+There is also a **demo cooktop** (simulated cooking session) to try the
+entities, dashboards and automations without an appliance.
 
 ## Entities
-
-One device per cooktop.
 
 ### Cooktop
 
 | Entity | Type | Notes |
 |---|---|---|
-| Status | sensor (enum) | off, standby, cooking, paused, after_run, offline |
+| Status | sensor (enum) | off, standby, cooking, paused, after_run, error |
 | Active zones | sensor | number of heating zones |
-| Short timer end | sensor (timestamp) | egg timer |
 | Extractor mode | sensor (enum) | off, manual, automatic, power_boost, after_run |
 | Extractor fan level | sensor | 0–9 |
 | After-run end | sensor (timestamp) | automatic extractor after-run |
-| Odour filter remaining | sensor (%) | recirculation models |
-| Online | binary sensor | connectivity |
-| Power, Cooking, Paused | binary sensor | |
+| After-run duration | sensor (min) | configured after-run time |
+| Error code | sensor | BORA error code(s), or `none` |
+| Odour filter lifetime (raw) | sensor | disabled by default, unit unknown |
+| Bluetooth connection | binary sensor | on while connected (cooktop on) |
+| Cooking, Residual heat, Paused | binary sensor | |
 | Child lock, Cleaning lock | binary sensor | |
 | Extractor running | binary sensor | |
-| Filter service | binary sensor (problem) | |
-| Residual heat | binary sensor (heat) | any zone still hot |
+| Odour filter change | binary sensor (problem) | recirculation models |
+| Error | binary sensor (problem) | |
+| Allow Bluetooth connection | switch | release the cooktop for the phone app |
 
-### For each cooking zone (front/rear, left/right)
+### For each cooking zone
 
 | Entity | Type | Notes |
 |---|---|---|
-| State | sensor (enum) | off, on, power_boost, keep_warm, assist, paused, no_pan, residual_heat |
-| Power level | sensor | 0–9 |
+| State | sensor (enum) | off, on, power_boost, keep_warm, heat_up, assist, residual_heat |
+| Power level | sensor | 0–9; P is shown as 9 with state power_boost |
 | Timer end | sensor (timestamp) | zone cut-off timer |
-| Assist programme | sensor (enum) | none, fry, boil |
-| Assist target temperature | sensor (°C) | Fry: 120–220 °C |
-| Active | binary sensor | |
-| Residual heat | binary sensor | the "H" indicator |
-| Pan detected | binary sensor | |
+| Keep warm | sensor (enum) | melting, keep_warm, simmering |
+| Assist programme | sensor (enum) | frying, pasta (boil), … |
+| Assist phase | sensor (enum) | preheat, confirmation_required, active, expired |
+| Assist target temperature | sensor (°C) | Fry |
+| Active, Residual heat | binary sensor | |
+| Assist confirmation required | binary sensor | the cooktop waits for you |
 
 ## Events
 
-The integration fires `bora_joy_event` with a `type` field:
+`bora_one_event` with a `type` field:
 
 | type | extra data |
 |---|---|
+| `switched_on` / `switched_off` | |
 | `cooking_started` / `cooking_finished` | |
 | `zone_timer_finished` | `zone` |
 | `assist_target_reached` | `zone`, `temperature` |
 | `assist_finished` | `zone`, `program` |
-| `short_timer_finished` | |
 | `after_run_finished` | |
 | `filter_service_required` | |
 
@@ -82,7 +110,7 @@ automation:
   - alias: Pan is hot
     triggers:
       - trigger: event
-        event_type: bora_joy_event
+        event_type: bora_one_event
         event_data:
           type: assist_target_reached
     actions:
@@ -91,16 +119,11 @@ automation:
           message: "Pan reached {{ trigger.event.data.temperature }} °C"
 ```
 
-## Read-only by design
+## Credits
 
-The integration does not control the cooktop. BORA asks for confirmation on the
-cooktop for anything sent from the app, and switching on a heat source from an
-automation is a safety risk.
-
-## Contributing API captures
-
-See [docs/API_DISCOVERY.md](docs/API_DISCOVERY.md). Please remove tokens and
-passwords before sharing captures.
+The Bluetooth protocol implementation comes from
+[ha-bora](https://github.com/kalsdjf23/ha-bora) by kalsdjf23 (MIT), see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Support
 

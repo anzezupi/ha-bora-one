@@ -1,35 +1,37 @@
-"""Base entities for BORA JOY."""
+"""Base entities for BORA One."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.const import CONF_ADDRESS
+from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, MANUFACTURER
-from .coordinator import BoraJoyCoordinator
+from .coordinator import BoraOneCoordinator
 from .models import Cooktop, CookingZone, ZonePosition
 
-# Remaining times are turned into end timestamps. Small drifts between polls are
+# Remaining times become end timestamps. Small drifts between updates are
 # ignored so the state does not change on every update.
 END_TIME_TOLERANCE = timedelta(seconds=10)
 
 
-class BoraJoyEntity(CoordinatorEntity[BoraJoyCoordinator]):
-    """An entity belonging to a BORA cooktop."""
+class BoraOneEntity(CoordinatorEntity[BoraOneCoordinator]):
+    """An entity of a BORA cooktop."""
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: BoraJoyCoordinator, appliance_id: str, key: str) -> None:
+    def __init__(self, coordinator: BoraOneCoordinator, key: str) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
-        self._appliance_id = appliance_id
-        self._attr_unique_id = f"{appliance_id}_{key}"
-        cooktop = coordinator.data[appliance_id]
+        cooktop = coordinator.data
+        self._attr_unique_id = f"{cooktop.appliance_id}_{key}"
+        address = coordinator.config_entry.data.get(CONF_ADDRESS)
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, appliance_id)},
+            identifiers={(DOMAIN, cooktop.appliance_id)},
+            connections={(CONNECTION_BLUETOOTH, address)} if address else set(),
             manufacturer=MANUFACTURER,
             name=cooktop.name,
             model=cooktop.model,
@@ -41,30 +43,17 @@ class BoraJoyEntity(CoordinatorEntity[BoraJoyCoordinator]):
     @property
     def cooktop(self) -> Cooktop:
         """Return the current cooktop state."""
-        return self.coordinator.data[self._appliance_id]
-
-    @property
-    def available(self) -> bool:
-        """Return True when the cooktop is reachable."""
-        return (
-            super().available
-            and self._appliance_id in self.coordinator.data
-            and self.cooktop.online
-        )
+        return self.coordinator.data
 
 
-class BoraJoyZoneEntity(BoraJoyEntity):
-    """An entity belonging to one cooking zone."""
+class BoraOneZoneEntity(BoraOneEntity):
+    """An entity of one cooking zone."""
 
     def __init__(
-        self,
-        coordinator: BoraJoyCoordinator,
-        appliance_id: str,
-        position: ZonePosition,
-        key: str,
+        self, coordinator: BoraOneCoordinator, position: ZonePosition, key: str
     ) -> None:
         """Initialize the entity."""
-        super().__init__(coordinator, appliance_id, f"{position.value}_{key}")
+        super().__init__(coordinator, f"{position.value}_{key}")
         self._position = position
 
     @property
@@ -74,7 +63,7 @@ class BoraJoyZoneEntity(BoraJoyEntity):
 
     @property
     def available(self) -> bool:
-        """Return True when the zone is reported."""
+        """Unavailable while the cooktop reports this zone as unknown."""
         return super().available and self.zone is not None
 
 

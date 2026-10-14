@@ -1,0 +1,390 @@
+{
+  "source": "User-owned X Pure PUXU2R; BLE firmware 3.0.9; BORA One schema 1.9.1. Device/account identifiers and absolute times removed. No official app code included.",
+  "sessions": [
+    {
+      "name": "status-request-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 1,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731801e277d1197c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210011a0208040d5d351e7c"
+        }
+      ]
+    },
+    {
+      "name": "status-request-2",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 1,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731801e277d1197c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210031a020804779d667d5e7c"
+        }
+      ]
+    },
+    {
+      "name": "status-request-3",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 1,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731801e277d1197c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a0208041090876b43672f707c"
+        }
+      ]
+    },
+    {
+      "name": "poll-observation-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 1,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731801e277d1197c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a0208041098884e81e8b6407c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 2,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f7253746174757318027b7d5e80a37c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180222100a0a0a00120210011a0208041088ba4d4ae196527c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 3,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f7253746174757318030c79b0357c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180322100a0a0a00120210011a02080410f8eb4c1d5522d97c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 4,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731804921d25967c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180422100a0a0a00120210011a02080410e89d4c3228d4927c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 5,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731805e51a15007c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180522100a0a0a00120210011a02080410d8cf4bd7481b2f7c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 6,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f7253746174757318067d5c1344ba7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180622100a0a0a00120210011a02080410c8814b06c25c7d5d7c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 7,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f7253746174757318070b14742c7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180722100a0a0a00120210011a02080410b8b34a1fa6d0927c"
+        }
+      ]
+    },
+    {
+      "name": "stream-observation-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "StreamExtractorStatusUpdates",
+          "request_id": 1,
+          "hex": "7e12482f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f53747265616d457874726163746f72537461747573557064617465731801fccdcf007c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180138033bbd271a7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a0208041090f0483801694cf9c67c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a0208041088c9483801b4ff92ae7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a0208041080a248380168a8a96d7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a02080410f8fa473801a4ef62137c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a02080410f0d347380149a5c9667c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a02080410e8ac4738012a69a5ef7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a02080410e085473801c7230e9a7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122100a0a0a00120210011a02080410d8de4638014bbc1f497c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210001a020804380105c463877c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210021a0208043801925b72ae7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210031a0208043801342c791a7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210091a0208043801905c26547c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210081a0208043801362b2de07c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210051a020804380157fc4c207c"
+        },
+        {
+          "event": "request",
+          "method": "StreamExtractorStatusUpdates",
+          "request_id": 1,
+          "hex": "7e12482f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f53747265616d457874726163746f7253746174757355706461746573180130027b4a66cc7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180138024cba178c7c"
+        }
+      ]
+    },
+    {
+      "name": "stream-observation-2",
+      "events": [
+        {
+          "event": "request",
+          "method": "StreamExtractorStatusUpdates",
+          "request_id": 1,
+          "hex": "7e12482f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f53747265616d457874726163746f72537461747573557064617465731801fccdcf007c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180138033bbd271a7c"
+        },
+        {
+          "event": "request",
+          "method": "StreamExtractorStatusUpdates",
+          "request_id": 1,
+          "hex": "7e12482f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f53747265616d457874726163746f7253746174757355706461746573180130027b4a66cc7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180138024cba178c7c"
+        }
+      ]
+    },
+    {
+      "name": "stream-observation-4",
+      "events": [
+        {
+          "event": "request",
+          "method": "StreamExtractorStatusUpdates",
+          "request_id": 1,
+          "hex": "7e12482f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f53747265616d457874726163746f72537461747573557064617465731801fccdcf007c"
+        },
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 2,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f7253746174757318027b7d5e80a37c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180138033bbd271a7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1802220c0a0a0a00120210001a020804214076d77c"
+        },
+        {
+          "event": "request",
+          "method": "StreamExtractorStatusUpdates",
+          "request_id": 1,
+          "hex": "7e12482f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f53747265616d457874726163746f7253746174757355706461746573180130027b4a66cc7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180138024cba178c7c"
+        }
+      ]
+    },
+    {
+      "name": "cooktop-status-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetCooktopStatus",
+          "request_id": 1,
+          "hex": "7e12382f626f72612e67656e657269632e636f6f6b746f702e76312e436f6f6b746f70536572766963652f476574436f6f6b746f705374617475731801a408c3bb7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801221f0a1b1002180420022a131001180228023202120038c2384204080110033a00c5ceee1d7c"
+        }
+      ]
+    },
+    {
+      "name": "standby-cooktop-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetCooktopStatus",
+          "request_id": 1,
+          "hex": "7e12382f626f72612e67656e657269632e636f6f6b746f702e76312e436f6f6b746f70536572766963652f476574436f6f6b746f705374617475731801a408c3bb7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801221f0a1b1001180420022a131001180228023202120038be384204080110033a002b658c2c7c"
+        }
+      ]
+    },
+    {
+      "name": "standby-extractor-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetExtractorStatus",
+          "request_id": 1,
+          "hex": "7e123e2f626f72612e67656e657269632e657874726163746f722e76312e457874726163746f72536572766963652f476574457874726163746f725374617475731801e277d1197c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e1801220c0a0a0a00120210001a020804303d1cae7c"
+        }
+      ]
+    },
+    {
+      "name": "device-descriptor-1",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetSystemValueRangeDescriptor",
+          "request_id": 1,
+          "hex": "7e12472f626f72612e67656e657269632e6964656e746966792e76312e4964656e74696679536572766963652f47657453797374656d56616c756552616e676544657363726970746f721801750b7bae7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e18012295040a300a0a66726f6e745f6c65667412096261636b5f6c6566741a0a6261636b5f7269676874220b66726f6e745f726967687412af010a0808e80710d0c0ba031204010203041a031201301a0508011201311a0508021201321a0508031201331a0508041201341a0508051201351a0508061201361a0508071201371a0508081201381a0508091201391a05080a12015020012a130a0a66726f6e745f6c656674120505010402032a120a096261636b5f6c656674120505010402032a120a0a6261636b5f72696768741204050104022a130a0b66726f6e745f72696768741204050104021a5b0a02010212031201301205080112013112050802120132120508031201331205080412013412050805120135120508061201361205080712013712050808120138120508091201501801220808e80710d0c0ba032a050a03030201220412023025220708011203313125220708021203323225220708031203333325220708041203343425220708051203353525220708061203363625220708071203373725220708081203383825220808091204313030252a6a0a0408011005120808904e10d0c0ba031a0d0801100318012050283c308c011a0e08051002181e20d201280f30e1011a0d0803100118012064287830dc011a0d0802100218012078287830f0011a0d0804100218012050283c308c011a0c08"
+        },
+        {
+          "event": "notification",
+          "hex": "06100118012034282a305e320e0a0c080112055055414b46189601ca4057c57c"
+        }
+      ]
+    },
+    {
+      "name": "zone-status-left_down",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetZoneStatus",
+          "request_id": 1,
+          "hex": "7e122f2f626f72612e67656e657269632e7a6f6e652e76312e5a6f6e65536572766963652f4765745a6f6e655374617475731801220c0a0a66726f6e745f6c656674894acd6e7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122160a120a0a66726f6e745f6c656674120208001a001801421ddd8b7c"
+        }
+      ]
+    },
+    {
+      "name": "zone-status-left_upper",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetZoneStatus",
+          "request_id": 1,
+          "hex": "7e122f2f626f72612e67656e657269632e7a6f6e652e76312e5a6f6e65536572766963652f4765745a6f6e655374617475731801220b0a096261636b5f6c656674b25c601a7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122150a110a096261636b5f6c656674120208001a001801ac51c38e7c"
+        }
+      ]
+    },
+    {
+      "name": "zone-status-right_upper",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetZoneStatus",
+          "request_id": 1,
+          "hex": "7e122f2f626f72612e67656e657269632e7a6f6e652e76312e5a6f6e65536572766963652f4765745a6f6e655374617475731801220c0a0a6261636b5f7269676874ee983eda7c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122160a120a0a6261636b5f7269676874120208001a00180131d333eb7c"
+        }
+      ]
+    },
+    {
+      "name": "zone-status-right_down",
+      "events": [
+        {
+          "event": "request",
+          "method": "GetZoneStatus",
+          "request_id": 1,
+          "hex": "7e122f2f626f72612e67656e657269632e7a6f6e652e76312e5a6f6e65536572766963652f4765745a6f6e655374617475731801220d0a0b66726f6e745f72696768745bf050127c"
+        },
+        {
+          "event": "notification",
+          "hex": "7e180122170a130a0b66726f6e745f7269676874120208001a0018011c908cac7c"
+        }
+      ]
+    }
+  ]
+}

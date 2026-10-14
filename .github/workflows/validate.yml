@@ -26,6 +26,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - run: pip install pytest-homeassistant-custom-component
+      - name: Install the Bluetooth libraries pinned by Home Assistant
+        run: |
+          HA=$(python -c "import importlib.util, os; print(os.path.dirname(importlib.util.find_spec('homeassistant').origin))")
+          REQS=$(python -c "import json, sys; print(' '.join(r for c in ('bluetooth', 'bluetooth_adapters') for r in json.load(open(f'$HA/components/{c}/manifest.json')).get('requirements', [])))")
+          echo "$REQS"
+          pip install $REQS
       - run: pytest -v

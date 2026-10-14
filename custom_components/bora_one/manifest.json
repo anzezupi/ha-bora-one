@@ -1,0 +1,23 @@
+{
+  "domain": "bora_one",
+  "name": "BORA One",
+  "bluetooth": [
+    {
+      "service_uuid": "64cbfe50-126b-17ac-774e-f6fa40487dac",
+      "connectable": true
+    },
+    {
+      "local_name": "X PURE",
+      "connectable": true
+    }
+  ],
+  "codeowners": ["@anzezupi"],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "documentation": "https://github.com/anzezupi/ha-bora-one",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/anzezupi/ha-bora-one/issues",
+  "requirements": [],
+  "version": "0.2.0"
+}
