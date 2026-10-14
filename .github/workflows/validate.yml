@@ -53,12 +53,13 @@ jobs:
       - name: Run tests
         run: |
           set -o pipefail
-          pytest -v -rfE 2>&1 | tee pytest.log
+          pytest -q --tb=short -p no:logging -rfE 2>&1 | tee pytest.log
       - name: Publish test failures as annotation
         if: failure()
         run: |
           python - <<'EOF'
-          text = open("pytest.log", encoding="utf-8", errors="replace").read()[-12000:]
-          text = text.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-          print(f"::error title=pytest::{text}")
+          text = open("pytest.log", encoding="utf-8", errors="replace").read()[-30000:]
+          for i in range(0, len(text), 3000):
+              part = text[i:i + 3000].replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::error title=pytest {i // 3000:02d}::{part}")
           EOF
