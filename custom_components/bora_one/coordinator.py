@@ -189,7 +189,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
 
     def _update_device_registry(self, cooktop: Cooktop) -> None:
         registry = dr.async_get(self.hass)
-        if device := registry.async_get_device(identifiers={(DOMAIN, cooktop.appliance_id)}):
+        for device in dr.async_entries_for_config_entry(registry, self.config_entry.entry_id):
             registry.async_update_device(
                 device.id,
                 model=cooktop.model,

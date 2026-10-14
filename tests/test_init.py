@@ -69,7 +69,8 @@ async def test_entities_from_recorded_cooktop(
     assert _state(hass, f"binary_sensor.{P}_extractor_running") == "on"
     assert _state(hass, f"switch.{P}_allow_bluetooth_connection") == "on"
 
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, ADDRESS)})
+    [device] = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    assert (DOMAIN, ADDRESS) in device.identifiers
     assert device.model == "X Pure"
     assert device.sw_version == "3.0.9"
 
