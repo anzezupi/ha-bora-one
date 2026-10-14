@@ -31,7 +31,23 @@ jobs:
       - name: Install the Bluetooth libraries pinned by Home Assistant
         run: |
           HA=$(python -c "import importlib.util, os; print(os.path.dirname(importlib.util.find_spec('homeassistant').origin))")
-          REQS=$(python -c "import json, sys; print(' '.join(r for c in ('bluetooth', 'bluetooth_adapters') for r in json.load(open(f'$HA/components/{c}/manifest.json')).get('requirements', [])))")
+          REQS=$(python - "$HA" <<'EOF'
+          import json, sys
+          seen, reqs, todo = set(), set(), ["bluetooth", "bluetooth_adapters"]
+          while todo:
+              name = todo.pop()
+              if name in seen:
+                  continue
+              seen.add(name)
+              try:
+                  manifest = json.load(open(f"{sys.argv[1]}/components/{name}/manifest.json"))
+              except FileNotFoundError:
+                  continue
+              reqs.update(manifest.get("requirements", []))
+              todo += manifest.get("dependencies", []) + manifest.get("after_dependencies", [])
+          print(" ".join(sorted(reqs)))
+          EOF
+          )
           echo "$REQS"
           pip install $REQS
       - name: Run tests
