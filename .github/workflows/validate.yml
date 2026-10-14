@@ -34,4 +34,15 @@ jobs:
           REQS=$(python -c "import json, sys; print(' '.join(r for c in ('bluetooth', 'bluetooth_adapters') for r in json.load(open(f'$HA/components/{c}/manifest.json')).get('requirements', [])))")
           echo "$REQS"
           pip install $REQS
-      - run: pytest -v
+      - name: Run tests
+        run: |
+          set -o pipefail
+          pytest -v -rfE 2>&1 | tee pytest.log
+      - name: Publish test failures as annotation
+        if: failure()
+        run: |
+          python - <<'EOF'
+          text = open("pytest.log", encoding="utf-8", errors="replace").read()[-12000:]
+          text = text.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+          print(f"::error title=pytest::{text}")
+          EOF
