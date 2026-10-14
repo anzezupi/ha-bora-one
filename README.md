@@ -1,5 +1,9 @@
 # BORA JOY for Home Assistant
 
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
+[![Validate](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml)
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-0070BA.svg?logo=paypal)](https://paypal.me/anzezupi)
+
 Custom integration (HACS) that brings BORA cooktops connected to the
 **BORA JOY** app into Home Assistant: cooking zones, power levels, timers,
 BORA Assist, the cooktop extractor and the odour filter.
@@ -97,6 +101,11 @@ automation is a safety risk.
 
 See [docs/API_DISCOVERY.md](docs/API_DISCOVERY.md). Please remove tokens and
 passwords before sharing captures.
+
+## Support
+
+If this integration is useful to you, you can buy me a coffee via
+[PayPal](https://paypal.me/anzezupi). Thank you!
 
 ## Disclaimer
 
