@@ -29,6 +29,10 @@ PAIRING_TIMEOUT = 240
 """Pairing waits for the Connect button and may need a second tap."""
 
 
+class PairingInProgress(Exception):
+    """Another pairing with this cooktop is already running."""
+
+
 def is_bora(info: bluetooth.BluetoothServiceInfoBleak) -> bool:
     """Return True for a BORA appliance advertisement."""
     return SERVICE_UUID in {uuid.lower() for uuid in info.service_uuids} or (
@@ -39,6 +43,8 @@ def is_bora(info: bluetooth.BluetoothServiceInfoBleak) -> bool:
 async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
     """Pair (if needed), read the appliance description and disconnect again."""
     pairing: set[str] = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_PAIRING, set())
+    if address in pairing:
+        raise PairingInProgress
     pairing.add(address)
     # Free the cooktop: the running integration must not connect at the same time.
     for entry in hass.config_entries.async_entries(DOMAIN):
@@ -48,7 +54,7 @@ async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
     device = BoraBleDevice(create_connection(hass, address))
     try:
         async with pairing_agent(), asyncio.timeout(PAIRING_TIMEOUT):
-            await device.connect(pair=True, subscribe=False)
+            await device.connect(pair=True, subscribe=False, read_status=False)
         product = device.information.get("product_name")
         return {
             CONF_ZONES: [p.value for p in zone_positions(device.descriptor).values()],
@@ -130,6 +136,8 @@ class BoraOneConfigFlow(ConfigFlow, domain=DOMAIN):
             assert self._address is not None
             try:
                 details = await async_pair_and_probe(self.hass, self._address)
+            except PairingInProgress:
+                errors["base"] = "pairing_in_progress"
             except PairingRequired as err:
                 _LOGGER.warning("Pairing with BORA %s not completed: %s", self._address, err)
                 errors["base"] = "pairing_failed"

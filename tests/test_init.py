@@ -188,6 +188,17 @@ async def test_unanswered_stream_falls_back_to_polling(
     assert ZONE_STREAM not in peer.subscriptions
 
 
+async def test_refused_zone_read_keeps_other_zones(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """A zone the cooktop refuses to report is unknown; the rest still works."""
+    peer.refused_zones.add("back_right")
+    await _setup(hass)
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
+    assert _state(hass, f"sensor.{P}_back_right_state") == "unavailable"
+
+
 async def test_setup_while_cooktop_is_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

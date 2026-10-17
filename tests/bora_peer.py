@@ -120,6 +120,8 @@ class FakeBoraPeer:
         self.zones = dict(ZONE_OFF)
         self.zones["back_left"] = BACK_LEFT_LEVEL_7
         self.subscriptions: dict[str, int] = {}
+        self.refused_zones: set[str] = set()
+        """Zones whose status read fails at GATT level (seen on a real X Pure)."""
         self.silent: set[str] = set()
         """Request paths the cooktop never answers."""
         self._notify: Callable | None = None
@@ -165,6 +167,8 @@ class FakeBoraPeer:
     async def start_notify(self, uuid: str, callback: Callable) -> None:
         assert uuid == RESPONSE_UUID
         self._notify = callback
+        if self.bonded and not self.stale_keys:
+            self.encrypted = True  # protected CCCD write encrypts with stored keys
 
     async def disconnect(self) -> None:
         self.is_connected = False
@@ -188,6 +192,8 @@ class FakeBoraPeer:
             self.subscriptions[path] = request_id
             self._reply(request_id, stream=wire.Stream.START)
         elif path == ZONE + "GetZoneStatus":
+            if body.text(1) in self.refused_zones:
+                raise RuntimeError("GATT Protocol Error: Unlikely Error")
             self._reply(request_id, self.zones[body.text(1)])
         elif path in self.status:
             self._reply(request_id, self.status[path])

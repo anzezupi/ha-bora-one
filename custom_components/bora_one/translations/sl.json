@@ -24,7 +24,8 @@
     "error": {
       "pairing_failed": "Seznanjanje na plošči ni bilo potrjeno. Poskusite znova in tapnite utripajočo tipko Connect. Podrobnosti: {error}",
       "cannot_connect": "Povezava s ploščo ni uspela. Plošča mora biti vklopljena, v dosegu Bluetooth adapterja, telefon pa mora imeti Bluetooth izklopljen. Podrobnosti: {error}",
-      "unknown": "Nepričakovana napaka: {error}"
+      "unknown": "Nepričakovana napaka: {error}",
+      "pairing_in_progress": "Seznanjanje s to ploščo že poteka. Počakajte, da se konča."
     },
     "abort": {
       "already_configured": "Ta plošča je že nastavljena.",

@@ -233,6 +233,19 @@ class BrpcConnection:
                 self._client = client
                 if not client.is_connected:
                     raise ConnectionLost("Connector returned a disconnected client")
+
+                def on_notification(_sender, value: bytearray) -> None:
+                    if self._generation is generation and not self._failed:
+                        self._receive(value)
+
+                # Subscribing writes the protected CCCD, which makes BlueZ
+                # encrypt the link with stored keys (like the BORA One app).
+                notifying = False
+                try:
+                    await client.start_notify(RESPONSE_UUID, on_notification)
+                    notifying = True
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("Subscribing before bond check failed: %r", err)
                 state = await self._initial_bond_state(client, pair=pair)
                 _LOGGER.debug("Connected; bond state %s", state)
                 if state != 1:
@@ -267,12 +280,10 @@ class BrpcConnection:
                         raise PairingRequired("Bluetooth bonding did not complete")
                     self.bond_state = state
 
-                def on_notification(_sender, value: bytearray) -> None:
-                    if self._generation is generation and not self._failed:
-                        self._receive(value)
-
                 if self._generation is not generation:
                     raise ConnectionLost("Connection closed during setup")
+                if notifying:
+                    return None
                 try:
                     await client.start_notify(RESPONSE_UUID, on_notification)
                 except Exception as err:

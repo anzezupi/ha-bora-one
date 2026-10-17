@@ -71,7 +71,9 @@ class BoraBleDevice:
         uids = (self.descriptor.get("zone_uids") or {}).values()
         return tuple(dict.fromkeys(uid for uid in uids if uid))
 
-    async def connect(self, *, pair: bool = False, subscribe: bool = True) -> None:
+    async def connect(
+        self, *, pair: bool = False, subscribe: bool = True, read_status: bool = True
+    ) -> None:
         """Connect, read capabilities, subscribe to status streams and read status."""
         async with self._lock:
             if self.connected and self._ready:
@@ -84,7 +86,8 @@ class BoraBleDevice:
                     await self._read_metadata()
                     if subscribe and not await self._subscribe():
                         continue
-                    await self._read_statuses()
+                    if read_status:
+                        await self._read_statuses()
                 except BaseException:
                     await self.connection.disconnect()
                     raise
@@ -193,5 +196,14 @@ class BoraBleDevice:
                 # An unavailable zone is unknown, not off; keep reading the others.
                 if err.code != UNAVAILABLE or not unavailable:
                     raise
+            except (ConnectionLost, ProtocolError):
+                raise
+            except Exception as err:  # noqa: BLE001
+                # X Pure sometimes refuses a single read at GATT level; the
+                # link stays usable, so treat this zone as unknown for now.
+                if not self.connected:
+                    raise
+                _LOGGER.warning("Reading zone %s failed: %r", uid, err)
+                self._state["zones"].pop(uid, None)
         if not self.connected:
             raise ConnectionLost("Bluetooth disconnected during status read")

@@ -24,7 +24,8 @@
     "error": {
       "pairing_failed": "Pairing was not confirmed on the cooktop. Try again and tap the pulsing Connect button. Details: {error}",
       "cannot_connect": "Could not connect to the cooktop. Make sure it is on, within range of the Bluetooth adapter and that the phone has Bluetooth off. Details: {error}",
-      "unknown": "Unexpected error: {error}"
+      "unknown": "Unexpected error: {error}",
+      "pairing_in_progress": "Pairing with this cooktop is already in progress. Wait for it to finish."
     },
     "abort": {
       "already_configured": "This cooktop is already configured.",
