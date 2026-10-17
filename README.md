@@ -1,7 +1,8 @@
 # BORA One for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
-[![Validate](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml)
+[![GitHub release](https://img.shields.io/github/v/release/anzezupi/ha-bora-one)](https://github.com/anzezupi/ha-bora-one/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
+[![Validate](https://github.com/anzezupi/ha-bora-one/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-one/actions/workflows/validate.yml)
 [![Buy me a coffee](https://img.shields.io/badge/☕_Buy_me_a_coffee-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/anzezupi)
 
 Custom integration (HACS) that shows what your BORA cooktop is doing in Home
@@ -9,11 +10,11 @@ Assistant: cooking zones, power levels, timers, BORA Assist, the cooktop
 extractor and the odour filter. It talks to the cooktop **locally over
 Bluetooth**, the same way the BORA One app does. No cloud account needed.
 
-> **Status: early.** Developed and tested only on a **BORA X Pure** so far. Other models
-> (Pure, S Pure, M Pure) use the same Bluetooth protocol and should work, but
-> have not been tried yet. **If it works, or does not work, on your cooktop, please
-> [open an issue](https://github.com/anzezupi/ha-bora-joy/issues)** with your model
-> and, if something fails, the integration's diagnostics and log lines.
+> **Tested on a real BORA X Pure.** Other models (Pure, S Pure, M Pure) use the
+> same Bluetooth protocol and should work, but have not been tried yet.
+> **If it works, or does not work, on your cooktop, please
+> [open an issue](https://github.com/anzezupi/ha-bora-one/issues/new/choose)**
+> with your model and, if something fails, the diagnostics and log lines.
 
 The integration is **read-only**. It never switches anything on the cooktop.
 
@@ -43,12 +44,15 @@ the cooktop is switched on again.
 
 ## Installation
 
-1. HACS → ⋮ → *Custom repositories* → add `https://github.com/anzezupi/ha-bora-joy` as an *Integration*.
-2. Install **BORA One** and restart Home Assistant.
+1. In HACS search for **BORA One** and download it. If it is not listed yet,
+   add it first: HACS → ⋮ → *Custom repositories* →
+   `https://github.com/anzezupi/ha-bora-one`, type *Integration*.
+2. Restart Home Assistant.
 3. Switch the cooktop on. Home Assistant should discover it; otherwise go to
    *Settings → Devices & services → Add integration → BORA One*.
 4. Pairing: turn off Bluetooth on the phone with the BORA One app, press
-   **Submit**, then tap the pulsing **Connect** button on the cooktop.
+   **Submit** once, then tap the pulsing **Connect** button on the cooktop and
+   wait up to a minute.
 
 **One connection at a time:** the cooktop accepts one Bluetooth client. While
 Home Assistant is connected, the BORA One app cannot connect. Turn off the
@@ -57,6 +61,23 @@ and turn it on again afterwards.
 
 There is also a **demo cooktop** (simulated cooking session) to try the
 entities, dashboards and automations without an appliance.
+
+## Troubleshooting
+
+| Problem | What to do |
+|---|---|
+| The Connect button never pulses, log shows `BleakOutOfConnectionSlotsError` | Set the Bluetooth scanning mode to **Active** (see Requirements). |
+| `AuthenticationCanceled` or *Pair Home Assistant with the cooktop again* | Use **Reconfigure** on the integration page and pair again; keep the phone's Bluetooth off. |
+| Entities stay *Off* while cooking | Check the *Bluetooth connection* sensor and the *Allow Bluetooth connection* switch; check the adapter is in range. |
+| One zone is *unavailable* | Some firmware refuses single zone reads now and then; the other zones keep working. |
+
+For a detailed log add this to `configuration.yaml` and restart:
+
+```yaml
+logger:
+  logs:
+    custom_components.bora_one: debug
+```
 
 ## Entities
 
