@@ -177,6 +177,17 @@ async def test_stream_error_frees_cooktop_and_reconnects(
     assert _state(hass, f"sensor.{P}_status") == "cooking"
 
 
+async def test_unanswered_stream_falls_back_to_polling(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """A status stream the cooktop never answers is skipped; reads still work."""
+    peer.silent.add(ZONE_STREAM)
+    await _setup(hass)
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
+    assert ZONE_STREAM not in peer.subscriptions
+
+
 async def test_setup_while_cooktop_is_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

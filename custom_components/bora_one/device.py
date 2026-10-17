@@ -9,18 +9,22 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from copy import deepcopy
+import logging
 from typing import Any
 
 from .ble import cooktop, extractor, identify, zone
-from .ble.transport import BrpcConnection, ConnectionLost, RpcError
+from .ble.transport import BrpcConnection, ConnectionLost, RequestTimeout, RpcError
 from .ble.wire import ProtocolError, Stream
+
+_LOGGER = logging.getLogger(__name__)
 
 UNIMPLEMENTED = 12
 UNAVAILABLE = 14
 
+# The cooktop status stream is not used: X Pure does not answer it, and its
+# content (pause, locks, errors) is read with every periodic refresh.
 STREAMS = (
     (extractor.STREAM_PATH, "extractor", extractor.decode_status),
-    (cooktop.STREAM_PATH, "cooktop", cooktop.decode_status),
     (zone.STREAM_PATH, "zones", zone.decode_status),
 )
 
@@ -121,6 +125,11 @@ class BoraBleDevice:
                 continue
             try:
                 await self.connection.subscribe(path, self._stream_callback(category, decoder))
+            except RequestTimeout:
+                # No answer at all: use periodic reads for this status instead.
+                _LOGGER.info("BORA does not answer %s; using periodic reads", path)
+                self._unsupported_streams.add(path)
+                return False
             except RpcError as err:
                 if not _unimplemented(err, path, (Stream.NONE, Stream.START)):
                     raise

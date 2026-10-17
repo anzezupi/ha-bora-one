@@ -120,6 +120,8 @@ class FakeBoraPeer:
         self.zones = dict(ZONE_OFF)
         self.zones["back_left"] = BACK_LEFT_LEVEL_7
         self.subscriptions: dict[str, int] = {}
+        self.silent: set[str] = set()
+        """Request paths the cooktop never answers."""
         self._notify: Callable | None = None
         self._disconnected: Callable | None = None
         self._decoder = wire.FrameDecoder()
@@ -178,6 +180,8 @@ class FakeBoraPeer:
         path, request_id = request.text(2), request.uint(3)
         body = wire.Message(request.bytes(4))
         self.requests.append(path)
+        if path in self.silent:
+            return
         if request.uint(6) == wire.Stream.STOP:
             self._reply(request_id, stream=wire.Stream.STOP)
         elif path.split("/")[-1].startswith("Stream"):

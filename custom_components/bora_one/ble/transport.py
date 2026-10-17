@@ -236,10 +236,15 @@ class BrpcConnection:
                 state = await self._initial_bond_state(client, pair=pair)
                 _LOGGER.debug("Connected; bond state %s", state)
                 if state != 1:
-                    # Encrypt with stored keys by touching the protected channel.
-                    with suppress(Exception):
-                        await client.read_gatt_char(RESPONSE_UUID)
-                    state = await self._initial_bond_state(client, pair=pair)
+                    # Encrypt with stored keys by touching the protected channel;
+                    # encryption completes asynchronously, so poll for a moment.
+                    for _ in range(6):
+                        with suppress(Exception):
+                            await client.read_gatt_char(RESPONSE_UUID)
+                        state = await self._initial_bond_state(client, pair=pair)
+                        if state == 1 or not client.is_connected:
+                            break
+                        await asyncio.sleep(0.5)
                     _LOGGER.debug("Bond state after touching the protected channel: %s", state)
                 self.bond_state = state
                 if state != 1:
