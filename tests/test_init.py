@@ -154,11 +154,15 @@ async def test_switch_off_and_on_again(
     assert _state(hass, f"sensor.{P}_extractor_mode") == "off"
     assert {"switched_off", "cooking_finished"} <= {e.data["type"] for e in events}
 
+    # The dropped client must still be closed, or BlueZ duplicates notifications.
+    assert peer.sessions == 0
+
     events.clear()
     bluetooth.advertise()
     await hass.async_block_till_done()
     assert _state(hass, f"sensor.{P}_status") == "cooking"
     assert {"switched_on", "cooking_started"} <= {e.data["type"] for e in events}
+    assert peer.sessions == 1
 
 
 async def test_stream_error_frees_cooktop_and_reconnects(

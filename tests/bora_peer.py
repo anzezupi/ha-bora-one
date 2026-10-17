@@ -124,6 +124,8 @@ class FakeBoraPeer:
         """Zones whose status read fails at GATT level (seen on a real X Pure)."""
         self.silent: set[str] = set()
         """Request paths the cooktop never answers."""
+        self.sessions = 0
+        """Client sessions not closed with disconnect() (a leaked BlueZ D-Bus session)."""
         self._notify: Callable | None = None
         self._disconnected: Callable | None = None
         self._decoder = wire.FrameDecoder()
@@ -135,6 +137,7 @@ class FakeBoraPeer:
             raise TimeoutError("not advertising")
         self._disconnected = disconnected
         self.is_connected = True
+        self.sessions += 1
         self.encrypted = False
         self.subscriptions.clear()
         return self
@@ -172,6 +175,7 @@ class FakeBoraPeer:
 
     async def disconnect(self) -> None:
         self.is_connected = False
+        self.sessions = max(0, self.sessions - 1)
 
     async def write_gatt_char(self, uuid: str, data: bytes, response: bool) -> None:
         assert uuid == WRITE_UUID and len(data) <= 20

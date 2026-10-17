@@ -220,7 +220,9 @@ class BrpcConnection:
 
         def on_disconnect(client: GattClient) -> None:
             if self._generation is generation and self._client is client:
-                self._client = None
+                # Keep the client: disconnect() must still close its D-Bus
+                # session, or BlueZ re-enables its notifications on every
+                # later connection and each reply arrives once more.
                 self._fail(ConnectionLost("Bluetooth disconnected"))
 
         try:
