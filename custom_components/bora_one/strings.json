@@ -18,13 +18,13 @@
       },
       "pair": {
         "title": "Pair with {name}",
-        "description": "1. Switch the cooktop on and make sure connectivity is enabled (Connect button lit).\n2. Turn off Bluetooth on the phone with the BORA One app, so the cooktop is free.\n3. Press **Submit**, then tap the pulsing **Connect** button on the cooktop to confirm pairing within about 30 seconds.\n\nHome Assistant only reads the cooktop status; it never controls it."
+        "description": "1. Switch the cooktop on. The **Connect** button on the cooktop must be dimly lit (connectivity enabled).\n2. On your phone, switch Bluetooth off so the BORA One app does not hold the cooktop.\n3. Click **Submit** and watch the cooktop. When the **Connect** button starts to pulse, tap it once to allow pairing. If it never pulses, Home Assistant could not reach the cooktop.\n\nHome Assistant only reads the cooktop status; it never controls it."
       }
     },
     "error": {
-      "pairing_failed": "Pairing was not confirmed on the cooktop. Try again and tap the Connect button.",
-      "cannot_connect": "Could not connect. Make sure the cooktop is on, nearby and not connected to the phone app.",
-      "unknown": "Unexpected error."
+      "pairing_failed": "Pairing was not confirmed on the cooktop. Try again and tap the pulsing Connect button. Details: {error}",
+      "cannot_connect": "Could not connect to the cooktop. Make sure it is on, within range of the Bluetooth adapter and that the phone has Bluetooth off. Details: {error}",
+      "unknown": "Unexpected error: {error}"
     },
     "abort": {
       "already_configured": "This cooktop is already configured.",

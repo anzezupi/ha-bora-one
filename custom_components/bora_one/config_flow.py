@@ -113,18 +113,23 @@ class BoraOneConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Explain pairing, then pair and read the cooktop description."""
         errors: dict[str, str] = {}
+        detail = ""
         if user_input is not None:
             assert self._address is not None
             try:
                 details = await async_pair_and_probe(self.hass, self._address)
-            except PairingRequired:
+            except PairingRequired as err:
+                _LOGGER.warning("Pairing with BORA %s not completed: %s", self._address, err)
                 errors["base"] = "pairing_failed"
+                detail = str(err)
             except (BoraError, BleakError, ProtocolError, TimeoutError) as err:
-                _LOGGER.debug("Connecting to BORA failed: %s", err)
+                _LOGGER.warning("Connecting to BORA %s failed: %r", self._address, err)
                 errors["base"] = "cannot_connect"
-            except Exception:
+                detail = f"{type(err).__name__}: {err}" if str(err) else type(err).__name__
+            except Exception as err:
                 _LOGGER.exception("Unexpected error while pairing with BORA")
                 errors["base"] = "unknown"
+                detail = f"{type(err).__name__}: {err}"
             else:
                 data = {CONF_MODE: MODE_BLUETOOTH, CONF_ADDRESS: self._address, **details}
                 if self.source == SOURCE_REAUTH:
@@ -136,7 +141,7 @@ class BoraOneConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="pair",
             errors=errors,
-            description_placeholders={"name": self._name},
+            description_placeholders={"name": self._name, "error": detail},
         )
 
     async def async_step_reauth(

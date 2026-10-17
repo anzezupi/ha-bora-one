@@ -18,13 +18,13 @@
       },
       "pair": {
         "title": "Seznanjanje z {name}",
-        "description": "1. Vklopite ploščo in preverite, da je povezljivost vklopljena (tipka Connect sveti).\n2. Na telefonu z aplikacijo BORA One izklopite Bluetooth, da je plošča prosta.\n3. Pritisnite **Pošlji**, nato v približno 30 sekundah na plošči tapnite utripajočo tipko **Connect** za potrditev seznanjanja.\n\nHome Assistant stanje plošče samo bere, nikoli je ne upravlja."
+        "description": "1. Vklopite ploščo. Tipka **Connect** na plošči mora rahlo svetiti (povezljivost vklopljena).\n2. Na telefonu izklopite Bluetooth, da aplikacija BORA One ne zaseda plošče.\n3. Kliknite **Pošlji** in glejte ploščo. Ko tipka **Connect** začne utripati, jo enkrat tapnite, da dovolite seznanjanje. Če ne utripa, Home Assistant plošče ni dosegel.\n\nHome Assistant stanje plošče samo bere, nikoli je ne upravlja."
       }
     },
     "error": {
-      "pairing_failed": "Seznanjanje na plošči ni bilo potrjeno. Poskusite znova in tapnite tipko Connect.",
-      "cannot_connect": "Povezava ni uspela. Plošča mora biti vklopljena, blizu in ne povezana z aplikacijo na telefonu.",
-      "unknown": "Nepričakovana napaka."
+      "pairing_failed": "Seznanjanje na plošči ni bilo potrjeno. Poskusite znova in tapnite utripajočo tipko Connect. Podrobnosti: {error}",
+      "cannot_connect": "Povezava s ploščo ni uspela. Plošča mora biti vklopljena, v dosegu Bluetooth adapterja, telefon pa mora imeti Bluetooth izklopljen. Podrobnosti: {error}",
+      "unknown": "Nepričakovana napaka: {error}"
     },
     "abort": {
       "already_configured": "Ta plošča je že nastavljena.",
