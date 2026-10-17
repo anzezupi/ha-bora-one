@@ -214,6 +214,10 @@ class FakeBoraPeer:
         """Send a stream update, like the appliance does when something changes."""
         self._reply(self.subscriptions[path], body, stream=wire.Stream.CONTINUE)
 
+    def push_error(self, path: str, code: int = 14) -> None:
+        """Send an error on a status stream (the transport treats it as fatal)."""
+        self._reply(self.subscriptions[path], code=code, stream=wire.Stream.CONTINUE)
+
     def switch_off(self) -> None:
         """The cooktop is switched off: Bluetooth drops and advertising stops."""
         self.advertising = False

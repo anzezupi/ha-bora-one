@@ -161,6 +161,17 @@ class BrpcConnection:
             raise ProtocolError("Invalid bonding status")
         return state[0]
 
+    async def _initial_bond_state(self, client: GattClient, *, pair: bool) -> int:
+        """Read the bond state; while pairing, a refused read counts as unbonded."""
+        try:
+            return await self._read_bond_state(client)
+        except ProtocolError:
+            raise
+        except Exception:
+            if not pair or not client.is_connected:
+                raise
+            return 0
+
     async def _pair_and_wait(self, client: GattClient) -> int | None:
         """Request pairing and keep the link open until the user confirms on the cooktop.
 
@@ -219,12 +230,12 @@ class BrpcConnection:
                 self._client = client
                 if not client.is_connected:
                     raise ConnectionLost("Connector returned a disconnected client")
-                state = await self._read_bond_state(client)
+                state = await self._initial_bond_state(client, pair=pair)
                 if state != 1:
                     # Encrypt with stored keys by touching the protected channel.
                     with suppress(Exception):
                         await client.read_gatt_char(RESPONSE_UUID)
-                    state = await self._read_bond_state(client)
+                    state = await self._initial_bond_state(client, pair=pair)
                 self.bond_state = state
                 if state != 1:
                     if not pair:

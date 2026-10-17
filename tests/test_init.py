@@ -161,6 +161,22 @@ async def test_switch_off_and_on_again(
     assert {"switched_on", "cooking_started"} <= {e.data["type"] for e in events}
 
 
+async def test_stream_error_frees_cooktop_and_reconnects(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """A failed status stream closes the Bluetooth link so we can reconnect."""
+    await _setup(hass)
+    peer.push_error(ZONE_STREAM)
+    await hass.async_block_till_done()
+    assert not peer.is_connected
+    assert _state(hass, f"sensor.{P}_status") == "off"
+
+    bluetooth.advertise()
+    await hass.async_block_till_done()
+    assert peer.is_connected
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+
+
 async def test_setup_while_cooktop_is_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

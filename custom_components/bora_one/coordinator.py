@@ -121,7 +121,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             try:
                 await self.device.refresh()
             except CONNECTION_ERRORS as err:
-                _LOGGER.debug("BORA status read failed: %s", err)
+                _LOGGER.warning("Reading BORA status failed, disconnecting: %r", err)
                 await self.device.disconnect()
                 return self._offline()
             return self._current()
@@ -135,10 +135,16 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         except PairingRequired as err:
             raise ConfigEntryAuthFailed("Pair Home Assistant with the cooktop again") from err
         except CONNECTION_ERRORS as err:
-            _LOGGER.debug("BORA connection failed: %s", err)
+            _LOGGER.info("Could not connect to BORA: %r", err)
             await self.device.disconnect()
             return self._offline()
         cooktop = self._current()
+        _LOGGER.info(
+            "Connected to BORA %s: %d active zone(s), extractor %s",
+            cooktop.model or "",
+            cooktop.active_zone_count,
+            cooktop.extractor.mode.value if cooktop.extractor else "n/a",
+        )
         self._update_device_registry(cooktop)
         return cooktop
 
@@ -148,14 +154,29 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         if self._closed or self.device is None or not self.device.connected:
             return
         new = self._current()
+        _LOGGER.debug(
+            "BORA update: %s",
+            {p.value: (z.state.value, z.power_level) for p, z in new.zones.items()},
+        )
         self._fire_events(new)
         self.async_set_updated_data(new)
 
     @callback
     def _on_disconnect(self) -> None:
-        """The Bluetooth connection dropped (normally: cooktop switched off)."""
-        if self._closed:
+        """The connection dropped (normally: cooktop switched off) or failed."""
+        if self._closed or self.device is None:
             return
+        connection = self.device.connection
+        _LOGGER.info(
+            "BORA connection ended (protocol error: %s, last RPC error: %s)",
+            connection.last_protocol_error,
+            connection.last_rpc_error,
+        )
+        # A failed stream leaves the Bluetooth link open; close it so the
+        # cooktop is free and we can reconnect.
+        self.config_entry.async_create_task(
+            self.hass, self.device.disconnect(), "bora_one_disconnect"
+        )
         new = self._offline()
         self._fire_events(new)
         self.async_set_updated_data(new)
