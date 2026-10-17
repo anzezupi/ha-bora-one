@@ -15,6 +15,7 @@ from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlow, ConfigFlowRe
 from homeassistant.const import CONF_ADDRESS
 
 from .adapter import create_connection
+from .agent import pairing_agent
 from .ble.transport import BoraError, PairingRequired
 from .ble.wire import ProtocolError
 from .const import CONF_MODE, CONNECT_TIMEOUT, DOMAIN, MODE_BLUETOOTH, MODE_DEMO, SERVICE_UUID
@@ -36,7 +37,7 @@ async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
     """Pair (if needed), read the appliance description and disconnect again."""
     device = BoraBleDevice(create_connection(hass, address))
     try:
-        async with asyncio.timeout(CONNECT_TIMEOUT):
+        async with pairing_agent(), asyncio.timeout(CONNECT_TIMEOUT):
             await device.connect(pair=True, subscribe=False)
         product = device.information.get("product_name")
         return {

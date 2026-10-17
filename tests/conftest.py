@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -62,11 +63,16 @@ def bluetooth(peer: FakeBoraPeer) -> Generator[FakeBluetooth]:
         assert address == ADDRESS
         return peer.connection(disconnected)
 
+    @asynccontextmanager
+    async def no_agent():
+        yield
+
     service_info = SimpleNamespace(address=ADDRESS, name="X PURE", service_uuids=[SERVICE_UUID])
     with (
         patch("homeassistant.setup.async_process_deps_reqs", side_effect=process_deps),
         patch("custom_components.bora_one.coordinator.create_connection", side_effect=connection),
         patch("custom_components.bora_one.config_flow.create_connection", side_effect=connection),
+        patch("custom_components.bora_one.config_flow.pairing_agent", no_agent),
         patch(
             "homeassistant.components.bluetooth.async_ble_device_from_address",
             side_effect=lambda hass, address, connectable=True: object() if peer.advertising else None,
