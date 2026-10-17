@@ -3,7 +3,8 @@
 ## ha-bora
 
 `custom_components/bora_one/ble/` (except `__init__.py`) and `tests/fixtures/x_pure_*.json`
-are taken from [ha-bora](https://github.com/kalsdjf23/ha-bora) (commit f6452b0).
+are taken from [ha-bora](https://github.com/kalsdjf23/ha-bora) (commit f6452b0);
+`ble/transport.py` was modified for BlueZ bonding.
 
 ```
 MIT License

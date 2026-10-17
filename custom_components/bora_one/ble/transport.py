@@ -1,4 +1,7 @@
-"""Asynchronous BRPC transport with bounded requests and no command replay."""
+"""Asynchronous BRPC transport with bounded requests and no command replay.
+
+Modified for bora_one: bond verification and pairing work with BlueZ (see connect).
+"""
 
 from __future__ import annotations
 
@@ -62,7 +65,7 @@ class GattClient(Protocol):
     async def read_gatt_char(self, uuid: str) -> bytearray: ...
     async def write_gatt_char(self, uuid: str, data: bytes, response: bool) -> None: ...
     async def pair(self) -> None: ...
-    async def disconnect(self) -> None: ...
+    async def disconnect(self) -> None: ...  # unpair() is optional
 
 
 type Connector = Callable[[Callable[[GattClient], None]], Awaitable[GattClient]]
@@ -129,62 +132,95 @@ class BrpcConnection:
         return None if self._last_rpc_error is None else dict(self._last_rpc_error)
 
     async def connect(self, *, pair: bool = False) -> None:
-        """Connect, verify bonding and subscribe; pairing is explicit setup only."""
+        """Connect, make sure the link is bonded and subscribe.
+
+        Pairing only happens when ``pair`` is set (explicit setup). On BlueZ an
+        existing bond is used only once the link is encrypted, which happens
+        when a protected characteristic is accessed. After pairing the GATT
+        table can change, so the bond is verified on a fresh connection.
+        """
         async with self._connect_lock:
             if self.connected:
                 return
             if self._client:
                 await self.disconnect()
-            self._closing = False
-            self._failed = False
-            self._decoder.reset()
-            self.last_protocol_error = None
-            self._last_rpc_error = None
-            generation = self._generation = object()
+            done: set[str] = set()
+            for _attempt in range(6):
+                action = await self._open(pair=pair, done=done)
+                if action is None:
+                    return
+                # Pairing (or removing a stale bond) happened; verify on a new link.
+                await self.disconnect()
+            raise PairingRequired("Bluetooth bonding did not complete")
 
-            def on_disconnect(client: GattClient) -> None:
-                if self._generation is generation and self._client is client:
-                    self._client = None
-                    self._fail(ConnectionLost("Bluetooth disconnected"))
+    async def _read_bond_state(self, client: GattClient) -> int:
+        state = bytes(await client.read_gatt_char(BOND_UUID))
+        if len(state) != 1 or state[0] not in (0, 1, 2):
+            raise ProtocolError("Invalid bonding status")
+        return state[0]
 
-            try:
-                async with asyncio.timeout(self.connect_timeout):
-                    client = await self._connector(on_disconnect)
-                    if self._generation is not generation:
-                        await client.disconnect()
-                        raise ConnectionLost("Connection attempt was closed")
-                    self._client = client
-                    if not client.is_connected:
-                        raise ConnectionLost("Connector returned a disconnected client")
-                    state = bytes(await client.read_gatt_char(BOND_UUID))
-                    if len(state) != 1 or state[0] not in (0, 1, 2):
-                        raise ProtocolError("Invalid bonding status")
-                    self.bond_state = state[0]
-                    if self.bond_state != 1:
-                        if not pair:
-                            raise PairingRequired("Pair this Bluetooth adapter with BORA first")
+    async def _open(self, *, pair: bool, done: set[str]) -> str | None:
+        """Open one connection; return None when ready, else the pairing action taken."""
+        self._closing = False
+        self._failed = False
+        self._decoder.reset()
+        self.last_protocol_error = None
+        self._last_rpc_error = None
+        generation = self._generation = object()
+
+        def on_disconnect(client: GattClient) -> None:
+            if self._generation is generation and self._client is client:
+                self._client = None
+                self._fail(ConnectionLost("Bluetooth disconnected"))
+
+        try:
+            async with asyncio.timeout(self.connect_timeout):
+                client = await self._connector(on_disconnect)
+                if self._generation is not generation:
+                    await client.disconnect()
+                    raise ConnectionLost("Connection attempt was closed")
+                self._client = client
+                if not client.is_connected:
+                    raise ConnectionLost("Connector returned a disconnected client")
+                state = await self._read_bond_state(client)
+                if state != 1:
+                    # Encrypt with stored keys by touching the protected channel.
+                    with suppress(Exception):
+                        await client.read_gatt_char(RESPONSE_UUID)
+                    state = await self._read_bond_state(client)
+                self.bond_state = state
+                if state != 1:
+                    if not pair:
+                        raise PairingRequired("Pair this Bluetooth adapter with BORA first")
+                    if "pair" not in done:
+                        done.add("pair")
                         try:
                             await client.pair()
                         except NotImplementedError:
                             # CoreBluetooth pairs on access to protected FE52.
-                            # A backend that cannot pair will fail that read.
-                            pass
-                        await client.read_gatt_char(RESPONSE_UUID)
-                        state = bytes(await client.read_gatt_char(BOND_UUID))
-                        if state != b"\x01":
-                            raise PairingRequired("Bluetooth bonding did not complete")
-                        self.bond_state = 1
+                            with suppress(Exception):
+                                await client.read_gatt_char(RESPONSE_UUID)
+                        return "pair"
+                    if "unpair" not in done and hasattr(client, "unpair"):
+                        # The adapter may hold keys the cooktop has forgotten.
+                        done.add("unpair")
+                        done.discard("pair")
+                        with suppress(Exception):
+                            await client.unpair()
+                        return "unpair"
+                    raise PairingRequired("Bluetooth bonding did not complete")
 
-                    def on_notification(_sender, value: bytearray) -> None:
-                        if self._generation is generation and not self._failed:
-                            self._receive(value)
+                def on_notification(_sender, value: bytearray) -> None:
+                    if self._generation is generation and not self._failed:
+                        self._receive(value)
 
-                    if self._generation is not generation:
-                        raise ConnectionLost("Connection closed during setup")
-                    await client.start_notify(RESPONSE_UUID, on_notification)
-            except BaseException:
-                await self.disconnect()
-                raise
+                if self._generation is not generation:
+                    raise ConnectionLost("Connection closed during setup")
+                await client.start_notify(RESPONSE_UUID, on_notification)
+                return None
+        except BaseException:
+            await self.disconnect()
+            raise
 
     def _fail(self, error: Exception) -> None:
         self._failed = True

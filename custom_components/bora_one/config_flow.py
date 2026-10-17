@@ -18,12 +18,15 @@ from .adapter import create_connection
 from .agent import pairing_agent
 from .ble.transport import BoraError, PairingRequired
 from .ble.wire import ProtocolError
-from .const import CONF_MODE, CONNECT_TIMEOUT, DOMAIN, MODE_BLUETOOTH, MODE_DEMO, SERVICE_UUID
+from .const import CONF_MODE, DOMAIN, MODE_BLUETOOTH, MODE_DEMO, SERVICE_UUID
 from .coordinator import CONF_EXTRACTOR, CONF_MODEL, CONF_ZONES
 from .device import BoraBleDevice
 from .mapper import PRODUCT_MODELS, zone_positions
 
 _LOGGER = logging.getLogger(__name__)
+
+PAIRING_TIMEOUT = 120
+"""Pairing may need the Connect button to be tapped twice."""
 
 
 def is_bora(info: bluetooth.BluetoothServiceInfoBleak) -> bool:
@@ -37,7 +40,7 @@ async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
     """Pair (if needed), read the appliance description and disconnect again."""
     device = BoraBleDevice(create_connection(hass, address))
     try:
-        async with pairing_agent(), asyncio.timeout(CONNECT_TIMEOUT):
+        async with pairing_agent(), asyncio.timeout(PAIRING_TIMEOUT):
             await device.connect(pair=True, subscribe=False)
         product = device.information.get("product_name")
         return {

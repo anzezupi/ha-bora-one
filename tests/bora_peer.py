@@ -103,6 +103,9 @@ class FakeBoraPeer:
     def __init__(self) -> None:
         self.is_connected = False
         self.bonded = True
+        self.encrypted = False
+        self.stale_keys = False
+        self.unpaired = False
         self.accept_pairing = True
         self.advertising = True
         self.requests: list[str] = []
@@ -126,6 +129,7 @@ class FakeBoraPeer:
             raise TimeoutError("not advertising")
         self._disconnected = disconnected
         self.is_connected = True
+        self.encrypted = False
         self.subscriptions.clear()
         return self
 
@@ -136,12 +140,22 @@ class FakeBoraPeer:
 
     async def read_gatt_char(self, uuid: str) -> bytearray:
         if uuid == BOND_UUID:
-            return bytearray([1 if self.bonded else 0])
+            # Like the real cooktop: reports bonded only on an encrypted link.
+            return bytearray([1 if self.bonded and self.encrypted else 0])
+        if uuid == RESPONSE_UUID and self.bonded and not self.stale_keys:
+            self.encrypted = True  # BlueZ encrypts with stored keys on protected access
         return bytearray()
 
     async def pair(self) -> None:
+        if self.stale_keys:
+            return  # BlueZ believes it is already paired
         if self.accept_pairing:
             self.bonded = True
+            self.encrypted = True
+
+    async def unpair(self) -> None:
+        self.unpaired = True
+        self.stale_keys = False
 
     async def start_notify(self, uuid: str, callback: Callable) -> None:
         assert uuid == RESPONSE_UUID

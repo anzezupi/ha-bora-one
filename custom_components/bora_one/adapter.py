@@ -34,6 +34,8 @@ def create_connection(
             ),
             max_attempts=2,
             timeout=20,
+            # Pairing can change the GATT table; always discover services.
+            use_services_cache=False,
         )
 
     return BrpcConnection(connect, disconnected=disconnected)
