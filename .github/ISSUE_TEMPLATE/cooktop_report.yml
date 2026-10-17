@@ -1,0 +1,28 @@
+name: Cooktop report
+description: Tell us whether BORA One works with your cooktop
+labels: ["compatibility"]
+body:
+  - type: dropdown
+    id: model
+    attributes:
+      label: Cooktop model
+      options: [X Pure, Pure, S Pure, S Pure Plus, M Pure, X Pure Max, M Pure Max, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Does it work?
+      options: ["Yes, everything works", "Partly", "No"]
+    validations:
+      required: true
+  - type: input
+    id: adapter
+    attributes:
+      label: Bluetooth adapter or proxy
+      placeholder: e.g. ESP32 ESPHome proxy, USB adapter model
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened?
+      description: For problems, attach the diagnostics (device page → ⋮ → Download diagnostics) and the log lines containing bora_one.

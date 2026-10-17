@@ -25,8 +25,8 @@ from .mapper import PRODUCT_MODELS, zone_positions
 
 _LOGGER = logging.getLogger(__name__)
 
-PAIRING_TIMEOUT = 120
-"""Pairing may need the Connect button to be tapped twice."""
+PAIRING_TIMEOUT = 240
+"""Pairing waits for the Connect button and may need a second tap."""
 
 
 def is_bora(info: bluetooth.BluetoothServiceInfoBleak) -> bool:

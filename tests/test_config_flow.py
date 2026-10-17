@@ -63,6 +63,19 @@ async def test_first_time_pairing(hass: HomeAssistant, bluetooth, peer) -> None:
     assert peer.bonded
 
 
+async def test_pairing_waits_for_confirmation(hass: HomeAssistant, bluetooth, peer) -> None:
+    """The link stays open until the user taps Connect on the cooktop."""
+    peer.bonded = False
+    peer.confirm_delay = 0.3
+    result = await _start_pick(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_ADDRESS: ADDRESS}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert not peer.unpaired
+
+
 async def test_pairing_with_stale_adapter_keys(hass: HomeAssistant, bluetooth, peer) -> None:
     """Stale keys on the adapter are removed and pairing is repeated."""
     peer.bonded = False

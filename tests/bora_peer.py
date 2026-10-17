@@ -107,6 +107,8 @@ class FakeBoraPeer:
         self.stale_keys = False
         self.unpaired = False
         self.accept_pairing = True
+        self.confirm_delay = 0.0
+        """Seconds until the user taps Connect on the cooktop."""
         self.advertising = True
         self.requests: list[str] = []
         self.status: dict[str, bytes] = {
@@ -134,7 +136,7 @@ class FakeBoraPeer:
         return self
 
     def connection(self, disconnected: Callable[[], None] | None = None) -> BrpcConnection:
-        return BrpcConnection(self.connect, timeout=2, disconnected=disconnected)
+        return BrpcConnection(self.connect, timeout=2, disconnected=disconnected, pair_wait=0.5)
 
     # Bleak client API
 
@@ -150,6 +152,7 @@ class FakeBoraPeer:
         if self.stale_keys:
             return  # BlueZ believes it is already paired
         if self.accept_pairing:
+            await asyncio.sleep(self.confirm_delay)
             self.bonded = True
             self.encrypted = True
 

@@ -95,12 +95,14 @@ class BrpcConnection:
         connect_timeout: float = 60,
         disconnect_timeout: float = 5,
         disconnected: Callable[[], None] | None = None,
+        pair_wait: float = 50,
     ) -> None:
         self._connector = connector
         self.timeout = timeout
         self.connect_timeout = connect_timeout
         self.disconnect_timeout = disconnect_timeout
         self._disconnected_callback = disconnected
+        self.pair_wait = pair_wait
         self._client: GattClient | None = None
         self._generation: object | None = None
         self._decoder = FrameDecoder()
@@ -159,6 +161,40 @@ class BrpcConnection:
             raise ProtocolError("Invalid bonding status")
         return state[0]
 
+    async def _pair_and_wait(self, client: GattClient) -> int | None:
+        """Request pairing and keep the link open until the user confirms on the cooktop.
+
+        Returns the bond state, or None when the GATT table changed and a new
+        connection is needed.
+        """
+        loop = asyncio.get_running_loop()
+        pairing = asyncio.ensure_future(client.pair())
+        deadline = loop.time() + self.pair_wait
+        try:
+            while True:
+                if pairing.done() and not pairing.cancelled():
+                    pairing.exception()  # retrieved; a failed pair() may still bond later
+                with suppress(Exception):
+                    await client.read_gatt_char(RESPONSE_UUID)
+                try:
+                    if await self._read_bond_state(client) == 1:
+                        return 1
+                except ProtocolError:
+                    raise
+                except Exception as err:  # noqa: BLE001
+                    if "not found" in str(err).lower():
+                        return None
+                if not client.is_connected:
+                    raise ConnectionLost("Bluetooth disconnected while pairing")
+                if loop.time() >= deadline:
+                    return 0
+                await asyncio.sleep(1)
+        finally:
+            if not pairing.done():
+                pairing.cancel()
+            with suppress(BaseException):
+                await pairing
+
     async def _open(self, *, pair: bool, done: set[str]) -> str | None:
         """Open one connection; return None when ready, else the pairing action taken."""
         self._closing = False
@@ -174,7 +210,8 @@ class BrpcConnection:
                 self._fail(ConnectionLost("Bluetooth disconnected"))
 
         try:
-            async with asyncio.timeout(self.connect_timeout):
+            budget = self.connect_timeout + (self.pair_wait if pair else 0)
+            async with asyncio.timeout(budget):
                 client = await self._connector(on_disconnect)
                 if self._generation is not generation:
                     await client.disconnect()
@@ -194,21 +231,20 @@ class BrpcConnection:
                         raise PairingRequired("Pair this Bluetooth adapter with BORA first")
                     if "pair" not in done:
                         done.add("pair")
-                        try:
-                            await client.pair()
-                        except NotImplementedError:
-                            # CoreBluetooth pairs on access to protected FE52.
+                        result = await self._pair_and_wait(client)
+                        if result is None:
+                            return "pair"  # GATT table changed; continue on a new link
+                        state = result
+                    if state != 1:
+                        if "unpair" not in done and hasattr(client, "unpair"):
+                            # The adapter may hold keys the cooktop has forgotten.
+                            done.add("unpair")
+                            done.discard("pair")
                             with suppress(Exception):
-                                await client.read_gatt_char(RESPONSE_UUID)
-                        return "pair"
-                    if "unpair" not in done and hasattr(client, "unpair"):
-                        # The adapter may hold keys the cooktop has forgotten.
-                        done.add("unpair")
-                        done.discard("pair")
-                        with suppress(Exception):
-                            await client.unpair()
-                        return "unpair"
-                    raise PairingRequired("Bluetooth bonding did not complete")
+                                await client.unpair()
+                            return "unpair"
+                        raise PairingRequired("Bluetooth bonding did not complete")
+                    self.bond_state = state
 
                 def on_notification(_sender, value: bytearray) -> None:
                     if self._generation is generation and not self._failed:
@@ -216,7 +252,12 @@ class BrpcConnection:
 
                 if self._generation is not generation:
                     raise ConnectionLost("Connection closed during setup")
-                await client.start_notify(RESPONSE_UUID, on_notification)
+                try:
+                    await client.start_notify(RESPONSE_UUID, on_notification)
+                except Exception as err:
+                    if "pair" in done and "not found" in str(err).lower():
+                        return "pair"  # GATT table changed after pairing
+                    raise
                 return None
         except BaseException:
             await self.disconnect()

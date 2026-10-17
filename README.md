@@ -2,16 +2,18 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
 [![Validate](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml)
-[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-0070BA.svg?logo=paypal)](https://paypal.me/anzezupi)
+[![Buy me a coffee](https://img.shields.io/badge/☕_Buy_me_a_coffee-PayPal-0070BA?logo=paypal&logoColor=white)](https://paypal.me/anzezupi)
 
 Custom integration (HACS) that shows what your BORA cooktop is doing in Home
 Assistant: cooking zones, power levels, timers, BORA Assist, the cooktop
 extractor and the odour filter. It talks to the cooktop **locally over
 Bluetooth**, the same way the BORA One app does. No cloud account needed.
 
-> **Status: early.** The protocol has been verified against recordings of a
-> real BORA X Pure, but this integration has not yet been tested on a real
-> cooktop inside Home Assistant. Reports are very welcome.
+> **Status: early.** Developed and tested only on a **BORA X Pure** so far. Other models
+> (Pure, S Pure, M Pure) use the same Bluetooth protocol and should work, but
+> have not been tried yet. **If it works, or does not work, on your cooktop, please
+> [open an issue](https://github.com/anzezupi/ha-bora-joy/issues)** with your model
+> and, if something fails, the integration's diagnostics and log lines.
 
 The integration is **read-only**. It never switches anything on the cooktop.
 
@@ -35,6 +37,9 @@ the cooktop is switched on again.
   [Home Assistant Bluetooth docs](https://www.home-assistant.io/integrations/bluetooth/)
   for supported adapters.
 - Connectivity enabled on the cooktop (user menu item **Con**).
+- Bluetooth scanning mode set to **Active**: *Settings → Devices & services →
+  Bluetooth → your adapter → Configure → Scanning mode → Active*. In *Auto* or
+  *Passive* mode Home Assistant sees the cooktop but cannot connect to it.
 
 ## Installation
 
@@ -127,8 +132,9 @@ The Bluetooth protocol implementation comes from
 
 ## Support
 
-If this integration is useful to you, you can buy me a coffee via
-[PayPal](https://paypal.me/anzezupi). Thank you!
+If this integration is useful to you, you can buy me a coffee. Thank you!
+
+[![Buy me a coffee with PayPal](https://img.shields.io/badge/☕_Buy_me_a_coffee-PayPal-0070BA?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/anzezupi)
 
 ## Disclaimer
 
