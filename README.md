@@ -1,7 +1,7 @@
 # BORA One for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
-[![Validate](https://github.com/anzezupi/ha-bora-one/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-one/actions/workflows/validate.yml)
+[![Validate](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml/badge.svg)](https://github.com/anzezupi/ha-bora-joy/actions/workflows/validate.yml)
 [![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-0070BA.svg?logo=paypal)](https://paypal.me/anzezupi)
 
 Custom integration (HACS) that shows what your BORA cooktop is doing in Home
@@ -38,7 +38,7 @@ the cooktop is switched on again.
 
 ## Installation
 
-1. HACS → ⋮ → *Custom repositories* → add `https://github.com/anzezupi/ha-bora-one` as an *Integration*.
+1. HACS → ⋮ → *Custom repositories* → add `https://github.com/anzezupi/ha-bora-joy` as an *Integration*.
 2. Install **BORA One** and restart Home Assistant.
 3. Switch the cooktop on. Home Assistant should discover it; otherwise go to
    *Settings → Devices & services → Add integration → BORA One*.
