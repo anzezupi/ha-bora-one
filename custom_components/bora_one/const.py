@@ -19,3 +19,6 @@ DEMO_UPDATE_INTERVAL: Final = timedelta(seconds=10)
 CONNECT_TIMEOUT: Final = 60
 
 EVENT_BORA_ONE: Final = "bora_one_event"
+
+DATA_PAIRING: Final = "pairing"
+"""hass.data[DOMAIN] key: addresses with a pairing flow in progress."""

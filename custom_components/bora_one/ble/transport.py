@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+import logging
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Protocol
@@ -17,6 +18,8 @@ SERVICE_UUID = "64cbfe50-126b-17ac-774e-f6fa40487dac"
 WRITE_UUID = "64cbfe51-126b-17ac-774e-f6fa40487dac"
 RESPONSE_UUID = "64cbfe52-126b-17ac-774e-f6fa40487dac"
 BOND_UUID = "64cbfe53-126b-17ac-774e-f6fa40487dac"
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BoraError(Exception):
@@ -231,11 +234,13 @@ class BrpcConnection:
                 if not client.is_connected:
                     raise ConnectionLost("Connector returned a disconnected client")
                 state = await self._initial_bond_state(client, pair=pair)
+                _LOGGER.debug("Connected; bond state %s", state)
                 if state != 1:
                     # Encrypt with stored keys by touching the protected channel.
                     with suppress(Exception):
                         await client.read_gatt_char(RESPONSE_UUID)
                     state = await self._initial_bond_state(client, pair=pair)
+                    _LOGGER.debug("Bond state after touching the protected channel: %s", state)
                 self.bond_state = state
                 if state != 1:
                     if not pair:
@@ -291,6 +296,11 @@ class BrpcConnection:
         try:
             for payload in self._decoder.feed(chunk):
                 reply = Response.decode(payload)
+                _LOGGER.debug(
+                    "Received id=%s code=%s stream=%s body=%s bytes",
+                    reply.request_id, reply.code, reply.stream.name,
+                    len(reply.body) if reply.body is not None else None,
+                )
                 future = self._pending.get(reply.request_id)
                 subscription = self._subscriptions.get(reply.request_id)
                 if reply.code or reply.error is not None:
@@ -383,9 +393,11 @@ class BrpcConnection:
             self._error_receivers[request_id] = failed
         try:
             async with asyncio.timeout(self.timeout if wait_seconds is None else wait_seconds):
+                _LOGGER.debug("Sending %s id=%s (%s bytes)", path, request_id, len(packet))
                 await self._send(packet)
                 return await future
         except TimeoutError as err:
+            _LOGGER.warning("BORA did not reply to %s (id=%s)", path, request_id)
             raise RequestTimeout("BORA did not reply; the request will not be replayed") from err
         finally:
             if self._pending.get(request_id) is future:

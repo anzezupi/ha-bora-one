@@ -18,7 +18,7 @@ from .adapter import create_connection
 from .agent import pairing_agent
 from .ble.transport import BoraError, PairingRequired
 from .ble.wire import ProtocolError
-from .const import CONF_MODE, DOMAIN, MODE_BLUETOOTH, MODE_DEMO, SERVICE_UUID
+from .const import CONF_MODE, DATA_PAIRING, DOMAIN, MODE_BLUETOOTH, MODE_DEMO, SERVICE_UUID
 from .coordinator import CONF_EXTRACTOR, CONF_MODEL, CONF_ZONES
 from .device import BoraBleDevice
 from .mapper import PRODUCT_MODELS, zone_positions
@@ -38,6 +38,13 @@ def is_bora(info: bluetooth.BluetoothServiceInfoBleak) -> bool:
 
 async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
     """Pair (if needed), read the appliance description and disconnect again."""
+    pairing: set[str] = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_PAIRING, set())
+    pairing.add(address)
+    # Free the cooktop: the running integration must not connect at the same time.
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        coordinator = getattr(entry, "runtime_data", None)
+        if entry.data.get(CONF_ADDRESS) == address and getattr(coordinator, "device", None):
+            await coordinator.device.disconnect()
     device = BoraBleDevice(create_connection(hass, address))
     try:
         async with pairing_agent(), asyncio.timeout(PAIRING_TIMEOUT):
@@ -50,6 +57,7 @@ async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
         }
     finally:
         await device.disconnect()
+        pairing.discard(address)
 
 
 class BoraOneConfigFlow(ConfigFlow, domain=DOMAIN):

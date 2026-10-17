@@ -22,6 +22,7 @@ from .ble.wire import ProtocolError
 from .const import (
     CONF_MODE,
     CONNECT_TIMEOUT,
+    DATA_PAIRING,
     DEMO_UPDATE_INTERVAL,
     DOMAIN,
     EVENT_BORA_ONE,
@@ -73,6 +74,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         self._demo_start = time.monotonic()
         self._closed = False
+        self._pairing_lost = False
         self.address: str | None = entry.data.get(CONF_ADDRESS)
         self.device: BoraBleDevice | None = None
         if not self.demo:
@@ -112,7 +114,14 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
 
     async def _async_update_ble(self) -> Cooktop:
         assert self.device is not None and self.address is not None
-        if self._closed or not self.connection_enabled:
+        pairing = self.hass.data.get(DOMAIN, {}).get(DATA_PAIRING, set())
+        if (
+            self._closed
+            or not self.connection_enabled
+            or self._pairing_lost
+            or self.address in pairing
+        ):
+            # Pairing flow running or pairing lost: leave the cooktop alone.
             if self.device.connected:
                 await self.device.disconnect()
             return self._offline()
@@ -133,6 +142,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             async with asyncio.timeout(CONNECT_TIMEOUT):
                 await self.device.connect()
         except PairingRequired as err:
+            self._pairing_lost = True
+            await self.device.disconnect()
             raise ConfigEntryAuthFailed("Pair Home Assistant with the cooktop again") from err
         except CONNECTION_ERRORS as err:
             _LOGGER.info("Could not connect to BORA: %r", err)
