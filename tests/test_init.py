@@ -239,20 +239,48 @@ async def test_connection_switch_releases_cooktop(
     assert _state(hass, f"sensor.{P}_status") == "cooking"
 
 
-async def test_lost_pairing_starts_reauth(
+def _reauth_started(hass: HomeAssistant, entry: MockConfigEntry) -> bool:
+    return any(
+        f["context"]["source"] == SOURCE_REAUTH and f["context"]["entry_id"] == entry.entry_id
+        for f in hass.config_entries.flow.async_progress()
+    )
+
+
+async def test_single_failed_bond_check_does_not_start_reauth(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:
-    """When the cooktop forgot the pairing, Home Assistant asks to pair again."""
+    """One unconfirmed bond is retried; the pairing is not declared lost."""
     entry = await _setup(hass)
     peer.switch_off()
     await hass.async_block_till_done()
 
+    peer.advertising = True
     peer.bonded = False
-    bluetooth.advertise()
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert not _reauth_started(hass, entry)
+    assert _state(hass, f"sensor.{P}_status") == "off"
+
+    peer.bonded = True
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+
+
+async def test_lost_pairing_starts_reauth(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer, monkeypatch
+) -> None:
+    """When the cooktop keeps refusing the bond, Home Assistant asks to pair again."""
+    monkeypatch.setattr("custom_components.bora_one.coordinator.PAIRING_GRACE", 0)
+    entry = await _setup(hass)
+    peer.switch_off()
     await hass.async_block_till_done()
 
-    flows = hass.config_entries.flow.async_progress()
-    assert any(
-        f["context"]["source"] == SOURCE_REAUTH and f["context"]["entry_id"] == entry.entry_id
-        for f in flows
-    )
+    peer.advertising = True
+    peer.bonded = False
+    for _ in range(3):
+        assert not _reauth_started(hass, entry)
+        await entry.runtime_data.async_refresh()
+        await hass.async_block_till_done()
+
+    assert _reauth_started(hass, entry)

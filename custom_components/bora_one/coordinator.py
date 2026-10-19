@@ -44,6 +44,12 @@ type BoraOneConfigEntry = ConfigEntry[BoraOneCoordinator]
 
 CONNECTION_ERRORS = (BoraError, BleakError, ProtocolError, TimeoutError)
 
+# A single failed bond check is not proof the cooktop forgot us: BlueZ may
+# encrypt the link late or the phone may interfere. Ask to pair again only
+# after repeated failures spread over some time.
+PAIRING_FAILURES = 3
+PAIRING_GRACE = 300.0
+
 
 class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     """Keeps the cooktop state; offline is a normal state, not an error."""
@@ -75,6 +81,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self._demo_start = time.monotonic()
         self._closed = False
         self._pairing_lost = False
+        self._pairing_failures = 0
+        self._first_pairing_failure = 0.0
         self.address: str | None = entry.data.get(CONF_ADDRESS)
         self.device: BoraBleDevice | None = None
         if not self.demo:
@@ -142,13 +150,28 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             async with asyncio.timeout(CONNECT_TIMEOUT):
                 await self.device.connect()
         except PairingRequired as err:
-            self._pairing_lost = True
             await self.device.disconnect()
+            now = time.monotonic()
+            if self._pairing_failures == 0:
+                self._first_pairing_failure = now
+            self._pairing_failures += 1
+            if (
+                self._pairing_failures < PAIRING_FAILURES
+                or now - self._first_pairing_failure < PAIRING_GRACE
+            ):
+                _LOGGER.warning(
+                    "BORA did not confirm the pairing (%d time(s)), retrying later: %r",
+                    self._pairing_failures,
+                    err,
+                )
+                return self._offline()
+            self._pairing_lost = True
             raise ConfigEntryAuthFailed("Pair Home Assistant with the cooktop again") from err
         except CONNECTION_ERRORS as err:
             _LOGGER.info("Could not connect to BORA: %r", err)
             await self.device.disconnect()
             return self._offline()
+        self._pairing_failures = 0
         cooktop = self._current()
         _LOGGER.info(
             "Connected to BORA %s: %d active zone(s), extractor %s",
