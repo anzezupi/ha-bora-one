@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
 
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
@@ -190,6 +192,31 @@ async def test_unanswered_stream_falls_back_to_polling(
     assert _state(hass, f"sensor.{P}_status") == "cooking"
     assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
     assert ZONE_STREAM not in peer.subscriptions
+
+
+@pytest.mark.parametrize("delay", [0, 0.05])
+async def test_link_dropped_after_subscribing_falls_back_to_polling(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer, delay: float
+) -> None:
+    """A cooktop that drops the link after a subscription is read periodically."""
+    peer.stream_drop_delay = delay
+    entry = await _setup(hass)
+    await asyncio.sleep(0.1)
+    await hass.async_block_till_done()
+    bluetooth.advertise()
+    await hass.async_block_till_done()
+
+    assert peer.is_connected
+    assert not entry.runtime_data.device.use_streams
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
+
+    peer.zones["back_left"] = zone_status("back_left", power=4)
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert peer.is_connected
+    assert not peer.subscriptions
+    assert _state(hass, f"sensor.{P}_back_left_power_level") == "4"
 
 
 async def test_refused_zone_read_keeps_other_zones(

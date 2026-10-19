@@ -124,6 +124,8 @@ class FakeBoraPeer:
         """Zones whose status read fails at GATT level (seen on a real X Pure)."""
         self.silent: set[str] = set()
         """Request paths the cooktop never answers."""
+        self.stream_drop_delay: float | None = None
+        """Seconds after a stream START until the link drops (seen while cooking)."""
         self.sessions = 0
         """Client sessions not closed with disconnect() (a leaked BlueZ D-Bus session)."""
         self._notify: Callable | None = None
@@ -195,6 +197,8 @@ class FakeBoraPeer:
         elif path.split("/")[-1].startswith("Stream"):
             self.subscriptions[path] = request_id
             self._reply(request_id, stream=wire.Stream.START)
+            if self.stream_drop_delay is not None:
+                asyncio.get_running_loop().call_later(self.stream_drop_delay, self._drop)
         elif path == ZONE + "GetZoneStatus":
             if body.text(1) in self.refused_zones:
                 raise RuntimeError("GATT Protocol Error: Unlikely Error")
@@ -235,6 +239,12 @@ class FakeBoraPeer:
     def switch_off(self) -> None:
         """The cooktop is switched off: Bluetooth drops and advertising stops."""
         self.advertising = False
+        self._drop()
+
+    def _drop(self) -> None:
+        """The Bluetooth link drops."""
+        if not self.is_connected:
+            return
         self.is_connected = False
         if self._disconnected:
             self._disconnected(self)

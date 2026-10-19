@@ -10,10 +10,11 @@ import asyncio
 from collections.abc import Callable
 from copy import deepcopy
 import logging
+import time
 from typing import Any
 
 from .ble import cooktop, extractor, identify, zone
-from .ble.transport import BrpcConnection, ConnectionLost, RequestTimeout, RpcError
+from .ble.transport import BrpcConnection, ConnectionLost, RpcError
 from .ble.wire import ProtocolError, Stream
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,6 +28,11 @@ STREAMS = (
     (extractor.STREAM_PATH, "extractor", extractor.decode_status),
     (zone.STREAM_PATH, "zones", zone.decode_status),
 )
+
+# While a zone is on, an X Pure behind a BlueZ adapter was seen to stop
+# answering and drop the link a few seconds after a status subscription.
+# A link lost this soon after subscribing means: use periodic reads only.
+STREAM_GRACE = 60.0
 
 
 def _unimplemented(err: RpcError, path: str, streams: tuple[Stream, ...]) -> bool:
@@ -52,8 +58,11 @@ class BoraBleDevice:
         self.descriptor: dict[str, Any] = {}
         self._state: dict[str, Any] = {"extractor": None, "cooktop": None, "zones": {}}
         self._unsupported_streams: set[str] = set()
+        self.use_streams = True
+        self._subscribed_at: float | None = None
         self._lock = asyncio.Lock()
         self._ready = False
+        self.connecting = False
 
     @property
     def connected(self) -> bool:
@@ -74,26 +83,41 @@ class BoraBleDevice:
     async def connect(
         self, *, pair: bool = False, subscribe: bool = True, read_status: bool = True
     ) -> None:
-        """Connect, read capabilities, subscribe to status streams and read status."""
+        """Connect, read capabilities and status, then subscribe to status streams."""
         async with self._lock:
             if self.connected and self._ready:
                 return
             self._ready = False
-            # A failed subscription closes the connection; reconnect without that stream.
-            for _attempt in range(len(STREAMS) + 1):
-                try:
-                    await self.connection.connect(pair=pair)
-                    await self._read_metadata()
-                    if subscribe and not await self._subscribe():
-                        continue
-                    if read_status:
-                        await self._read_statuses()
-                except BaseException:
-                    await self.connection.disconnect()
-                    raise
-                self._ready = True
-                return
-            raise ConnectionLost("Unable to set up BORA status subscriptions")
+            self._subscribed_at = None
+            self.connecting = True
+            try:
+                # A failed subscription closes the connection; reconnect without it.
+                for _attempt in range(len(STREAMS) + 2):
+                    try:
+                        await self.connection.connect(pair=pair)
+                        await self._read_metadata()
+                        # Read first, so a subscription that upsets the
+                        # cooktop cannot keep us from ever seeing its status.
+                        if read_status:
+                            await self._read_statuses()
+                        if subscribe and self.use_streams and not await self._subscribe():
+                            continue
+                    except BaseException:
+                        await self.connection.disconnect()
+                        raise
+                    if self.connection.subscription_count:
+                        self._subscribed_at = time.monotonic()
+                    self._ready = True
+                    return
+                raise ConnectionLost("Unable to set up BORA status subscriptions")
+            finally:
+                self.connecting = False
+
+    def connection_lost(self) -> None:
+        """The link dropped; stop using streams if it dropped soon after subscribing."""
+        subscribed_at, self._subscribed_at = self._subscribed_at, None
+        if subscribed_at is not None and time.monotonic() - subscribed_at < STREAM_GRACE:
+            self._disable_streams("BORA dropped the connection soon after subscribing")
 
     async def refresh(self) -> None:
         """Re-read all status values on the open connection."""
@@ -128,17 +152,24 @@ class BoraBleDevice:
                 continue
             try:
                 await self.connection.subscribe(path, self._stream_callback(category, decoder))
-            except RequestTimeout:
-                # No answer at all: use periodic reads for this status instead.
-                _LOGGER.info("BORA does not answer %s; using periodic reads", path)
-                self._unsupported_streams.add(path)
-                return False
             except RpcError as err:
                 if not _unimplemented(err, path, (Stream.NONE, Stream.START)):
                     raise
                 self._unsupported_streams.add(path)
                 return False
+            except ProtocolError:
+                raise
+            except Exception as err:  # noqa: BLE001
+                # No answer or a dropped link: the cooktop stops answering
+                # after an earlier subscription too, so poll everything.
+                self._disable_streams(f"BORA does not answer {path} ({err!r})")
+                return False
         return True
+
+    def _disable_streams(self, reason: str) -> None:
+        if self.use_streams:
+            _LOGGER.warning("%s; using periodic reads instead of status updates", reason)
+        self.use_streams = False
 
     def _stream_callback(self, category: str, decoder: Callable[[bytes], dict]):
         def update(body: bytes) -> None:

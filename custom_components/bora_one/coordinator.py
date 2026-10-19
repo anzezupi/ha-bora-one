@@ -200,6 +200,10 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         """The connection dropped (normally: cooktop switched off) or failed."""
         if self._closed or self.device is None:
             return
+        self.device.connection_lost()
+        if self.device.connecting:
+            # Connection setup handles this and may already be reconnecting.
+            return
         connection = self.device.connection
         _LOGGER.info(
             "BORA connection ended (protocol error: %s, last RPC error: %s)",
