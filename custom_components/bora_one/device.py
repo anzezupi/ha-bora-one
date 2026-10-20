@@ -34,6 +34,10 @@ STREAMS = (
 # A link lost this soon after subscribing means: use periodic reads only.
 STREAM_GRACE = 60.0
 
+# While cooking, an X Pure was seen to leave a request unanswered and drop
+# the link when requests follow each other closely. Leave a short gap.
+REQUEST_GAP = 0.3
+
 
 def _unimplemented(err: RpcError, path: str, streams: tuple[Stream, ...]) -> bool:
     """Return True when the appliance rejected exactly this request as unsupported."""
@@ -62,6 +66,7 @@ class BoraBleDevice:
         self._subscribed_at: float | None = None
         self._lock = asyncio.Lock()
         self._ready = False
+        self._have_metadata = False
         self.connecting = False
 
     @property
@@ -131,19 +136,28 @@ class BoraBleDevice:
         self._ready = False
         await self.connection.disconnect()
 
+    async def _rpc(self, *args: Any, **kwargs: Any) -> Any:
+        await asyncio.sleep(REQUEST_GAP)
+        return await self.connection.rpc(*args, **kwargs)
+
     async def _read_metadata(self) -> None:
+        if self._have_metadata:
+            # Capabilities do not change; fewer requests per connection
+            # means fewer chances for the cooktop to stop answering.
+            return
         self.descriptor = identify.decode_descriptor(
-            await self.connection.rpc(*identify.get_descriptor())
+            await self._rpc(*identify.get_descriptor())
         )
         if not self.descriptor.get("extractor_descriptor") and not self.zone_uids:
             raise ProtocolError("BORA descriptor lists no zones or extractor")
         path, body = identify.get_information()
         try:
-            self.information = identify.decode_information(await self.connection.rpc(path, body))
+            self.information = identify.decode_information(await self._rpc(path, body))
         except RpcError as err:
             if not _unimplemented(err, path, (Stream.NONE,)):
                 raise
             self.information = {}
+        self._have_metadata = True
 
     async def _subscribe(self) -> bool:
         """Subscribe to all supported streams; False means reconnect and retry."""
@@ -194,10 +208,10 @@ class BoraBleDevice:
             return received
 
         if self.descriptor.get("extractor_descriptor"):
-            await self.connection.rpc(
+            await self._rpc(
                 *extractor.get_status(), received=store("extractor", extractor.decode_status)
             )
-        await self.connection.rpc(
+        await self._rpc(
             *cooktop.get_status(), received=store("cooktop", cooktop.decode_status)
         )
 
@@ -220,7 +234,7 @@ class BoraBleDevice:
                     self._state["zones"].pop(expected, None)
 
             try:
-                await self.connection.rpc(
+                await self._rpc(
                     *zone.get_status(uid), received=store_zone, failed=failed_zone
                 )
             except RpcError as err:

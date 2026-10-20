@@ -23,6 +23,13 @@ def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
     """Enable loading custom integrations."""
 
 
+@pytest.fixture(autouse=True)
+def no_request_gap() -> Generator[None]:
+    """Send requests back to back; the simulated cooktop does not need pacing."""
+    with patch("custom_components.bora_one.device.REQUEST_GAP", 0):
+        yield
+
+
 @pytest.fixture
 def peer() -> FakeBoraPeer:
     """A simulated cooktop."""
