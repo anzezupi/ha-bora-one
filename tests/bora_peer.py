@@ -128,6 +128,8 @@ class FakeBoraPeer:
         """Seconds after a stream START until the link drops (seen while cooking)."""
         self.sessions = 0
         """Client sessions not closed with disconnect() (a leaked BlueZ D-Bus session)."""
+        self._link = 0
+        """Counts connections, so a delayed drop hits only the link it was meant for."""
         self._notify: Callable | None = None
         self._disconnected: Callable | None = None
         self._decoder = wire.FrameDecoder()
@@ -140,6 +142,7 @@ class FakeBoraPeer:
         self._disconnected = disconnected
         self.is_connected = True
         self.sessions += 1
+        self._link += 1
         self.encrypted = False
         self.subscriptions.clear()
         return self
@@ -198,7 +201,9 @@ class FakeBoraPeer:
             self.subscriptions[path] = request_id
             self._reply(request_id, stream=wire.Stream.START)
             if self.stream_drop_delay is not None:
-                asyncio.get_running_loop().call_later(self.stream_drop_delay, self._drop)
+                asyncio.get_running_loop().call_later(
+                    self.stream_drop_delay, self._drop, self._link
+                )
         elif path == ZONE + "GetZoneStatus":
             if body.text(1) in self.refused_zones:
                 raise RuntimeError("GATT Protocol Error: Unlikely Error")
@@ -241,9 +246,9 @@ class FakeBoraPeer:
         self.advertising = False
         self._drop()
 
-    def _drop(self) -> None:
+    def _drop(self, link: int | None = None) -> None:
         """The Bluetooth link drops."""
-        if not self.is_connected:
+        if not self.is_connected or link not in (None, self._link):
             return
         self.is_connected = False
         if self._disconnected:
