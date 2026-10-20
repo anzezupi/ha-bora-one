@@ -50,6 +50,11 @@ CONNECTION_ERRORS = (BoraError, BleakError, ProtocolError, TimeoutError)
 PAIRING_FAILURES = 3
 PAIRING_GRACE = 300.0
 
+# While cooking, an X Pure was seen to drop the link every minute or two and
+# accept a new connection right away. While it is still advertising, keep the
+# last state for this long and reconnect instead of flipping to offline.
+OFFLINE_GRACE = 150.0
+
 
 class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     """Keeps the cooktop state; offline is a normal state, not an error."""
@@ -83,6 +88,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self._pairing_lost = False
         self._pairing_failures = 0
         self._first_pairing_failure = 0.0
+        self._last_read: float | None = None
         self.address: str | None = entry.data.get(CONF_ADDRESS)
         self.device: BoraBleDevice | None = None
         if not self.demo:
@@ -96,8 +102,32 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     def _offline(self) -> Cooktop:
         return offline_cooktop(self._identity, self.positions, self.has_extractor)
 
+    def _advertising(self) -> bool:
+        return (
+            bluetooth.async_ble_device_from_address(self.hass, self.address, connectable=True)
+            is not None
+        )
+
+    def _within_grace(self) -> bool:
+        """Return True if a short drop should keep the last known state."""
+        return (
+            self.data is not None
+            and self.data.online
+            and self._last_read is not None
+            and time.monotonic() - self._last_read < OFFLINE_GRACE
+            and self._advertising()
+        )
+
+    def _offline_or_last(self) -> Cooktop:
+        if self._within_grace():
+            assert self.data is not None
+            return self.data
+        self._last_read = None
+        return self._offline()
+
     def _current(self) -> Cooktop:
         assert self.device is not None
+        self._last_read = time.monotonic()
         cooktop = map_cooktop(
             self._identity.appliance_id,
             self._identity.name,
@@ -138,13 +168,14 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             try:
                 await self.device.refresh()
             except CONNECTION_ERRORS as err:
-                _LOGGER.warning("Reading BORA status failed, disconnecting: %r", err)
+                _LOGGER.info("Reading BORA status failed, reconnecting: %r", err)
                 await self.device.disconnect()
-                return self._offline()
-            return self._current()
+            else:
+                return self._current()
 
         # Only try to connect while the cooktop is advertising (switched on).
-        if bluetooth.async_ble_device_from_address(self.hass, self.address, connectable=True) is None:
+        if not self._advertising():
+            self._last_read = None
             return self._offline()
         try:
             async with asyncio.timeout(CONNECT_TIMEOUT):
@@ -170,7 +201,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         except CONNECTION_ERRORS as err:
             _LOGGER.info("Could not connect to BORA: %r", err)
             await self.device.disconnect()
-            return self._offline()
+            return self._offline_or_last()
         self._pairing_failures = 0
         cooktop = self._current()
         _LOGGER.info(
@@ -205,19 +236,31 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             # Connection setup handles this and may already be reconnecting.
             return
         connection = self.device.connection
+        keep = self._within_grace()
         _LOGGER.info(
-            "BORA connection ended (protocol error: %s, last RPC error: %s)",
+            "BORA connection ended%s (protocol error: %s, last RPC error: %s)",
+            ", keeping the last state and reconnecting" if keep else "",
             connection.last_protocol_error,
             connection.last_rpc_error,
         )
         # A failed stream leaves the Bluetooth link open; close it so the
         # cooktop is free and we can reconnect.
         self.config_entry.async_create_task(
-            self.hass, self.device.disconnect(), "bora_one_disconnect"
+            self.hass, self._reconnect(keep), "bora_one_disconnect"
         )
+        if keep:
+            return
+        self._last_read = None
         new = self._offline()
         self._fire_events(new)
         self.async_set_updated_data(new)
+
+    async def _reconnect(self, now: bool) -> None:
+        assert self.device is not None
+        if not self.device.connecting:
+            await self.device.disconnect()
+        if now and not self._closed:
+            await self.async_request_refresh()
 
     @callback
     def async_on_advertisement(self) -> None:

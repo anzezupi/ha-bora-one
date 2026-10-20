@@ -16,7 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.bora_one.const import CONF_MODE, DOMAIN, EVENT_BORA_ONE, MODE_BLUETOOTH
 
-from .bora_peer import EXTRACTOR, EXTRACTOR_AFTER_RUN, ZONE, FakeBoraPeer, zone_status
+from .bora_peer import EXTRACTOR, EXTRACTOR_AFTER_RUN, IDENTIFY, ZONE, FakeBoraPeer, zone_status
 from .conftest import ADDRESS, FakeBluetooth
 
 P = "bora_x_pure"
@@ -170,17 +170,45 @@ async def test_switch_off_and_on_again(
 async def test_stream_error_frees_cooktop_and_reconnects(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:
-    """A failed status stream closes the Bluetooth link so we can reconnect."""
+    """A failed status stream closes the Bluetooth link and reconnects right away."""
     await _setup(hass)
     peer.push_error(ZONE_STREAM)
     await hass.async_block_till_done()
-    assert not peer.is_connected
-    assert _state(hass, f"sensor.{P}_status") == "off"
+    assert peer.is_connected
+    assert peer.sessions == 1
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
 
-    bluetooth.advertise()
+
+async def test_short_drop_keeps_last_state_and_reconnects(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """A dropped link while the cooktop still advertises is not reported as off."""
+    await _setup(hass)
+    events = async_capture_events(hass, EVENT_BORA_ONE)
+
+    peer._drop()
     await hass.async_block_till_done()
     assert peer.is_connected
+    assert peer.sessions == 1
     assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"binary_sensor.{P}_bluetooth_connection") == "on"
+    assert not events
+
+    # Capabilities are read once, not on every reconnect.
+    assert peer.requests.count(IDENTIFY + "GetSystemValueRangeDescriptor") == 1
+    assert peer.requests.count(IDENTIFY + "GetSystemInformation") == 1
+
+
+async def test_drop_after_grace_goes_offline(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer, monkeypatch
+) -> None:
+    """Without a recent successful read, a dropped link means offline."""
+    monkeypatch.setattr("custom_components.bora_one.coordinator.OFFLINE_GRACE", 0)
+    await _setup(hass)
+    peer._drop()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "off"
+    assert peer.sessions == 0
 
 
 async def test_unanswered_stream_falls_back_to_polling(
