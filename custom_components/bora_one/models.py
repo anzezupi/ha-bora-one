@@ -154,6 +154,9 @@ class Cooktop:
     online: bool = True
     """Connected over Bluetooth. X Pure turns Bluetooth off shortly after
     being switched off, so offline normally means switched off."""
+    switched_off: bool = False
+    """Connected, but every zone is reported unavailable: the cooktop was
+    switched off and has not dropped Bluetooth yet."""
     paused: bool = False
     child_lock: bool = False
     cleaning_lock: bool = False
