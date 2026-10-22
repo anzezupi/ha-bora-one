@@ -46,6 +46,8 @@ def _cooktop_status(cooktop: Cooktop) -> str:
         return "cooking"
     if cooktop.extractor and cooktop.extractor.mode is ExtractorMode.AFTER_RUN:
         return "after_run"
+    if cooktop.switched_off and not (cooktop.extractor and cooktop.extractor.is_running):
+        return "off"
     return "standby"
 
 

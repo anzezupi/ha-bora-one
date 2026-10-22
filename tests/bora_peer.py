@@ -120,6 +120,8 @@ class FakeBoraPeer:
         self.zones = dict(ZONE_OFF)
         self.zones["back_left"] = BACK_LEFT_LEVEL_7
         self.subscriptions: dict[str, int] = {}
+        self.unavailable_zones: set[str] = set()
+        """Zones answered with UNAVAILABLE (all of them once switched off)."""
         self.refused_zones: set[str] = set()
         """Zones whose status read fails at GATT level (seen on a real X Pure)."""
         self.silent: set[str] = set()
@@ -207,6 +209,9 @@ class FakeBoraPeer:
         elif path == ZONE + "GetZoneStatus":
             if body.text(1) in self.refused_zones:
                 raise RuntimeError("GATT Protocol Error: Unlikely Error")
+            if body.text(1) in self.unavailable_zones:
+                self._reply(request_id, code=14)
+                return
             self._reply(request_id, self.zones[body.text(1)])
         elif path in self.status:
             self._reply(request_id, self.status[path])

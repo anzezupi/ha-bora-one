@@ -189,9 +189,17 @@ def map_cooktop(
 
     zone_levels = (descriptor.get("zone_descriptor") or {}).get("power_levels", [])
     statuses = state.get("zones") or {}
-    for uid, position in zone_positions(descriptor).items():
-        if (status := statuses.get(uid)) is not None:
+    positions = zone_positions(descriptor)
+    for uid, position in positions.items():
+        if (status := statuses.get(uid)) is None:
+            continue
+        if status.get("unavailable"):
+            cooktop.zones[position] = CookingZone(position=position)
+        else:
             cooktop.zones[position] = map_zone(position, status, zone_levels)
+    cooktop.switched_off = bool(positions) and all(
+        (statuses.get(uid) or {}).get("unavailable") for uid in positions
+    )
 
     if (extractor_descriptor := descriptor.get("extractor_descriptor")) and (
         extractor_status := state.get("extractor")

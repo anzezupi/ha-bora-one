@@ -230,15 +230,17 @@ class BoraBleDevice:
             def failed_zone(error: RpcError, expected: str = uid) -> None:
                 nonlocal unavailable
                 if error.code == UNAVAILABLE:
+                    # X Pure answers this for every zone once it is switched
+                    # off but still holds the Bluetooth link: the zone is off.
                     unavailable = True
-                    self._state["zones"].pop(expected, None)
+                    self._state["zones"][expected] = {"uid": expected, "unavailable": True}
 
             try:
                 await self._rpc(
                     *zone.get_status(uid), received=store_zone, failed=failed_zone
                 )
             except RpcError as err:
-                # An unavailable zone is unknown, not off; keep reading the others.
+                # An unavailable zone is switched off; keep reading the others.
                 if err.code != UNAVAILABLE or not unavailable:
                     raise
             except (ConnectionLost, ProtocolError):

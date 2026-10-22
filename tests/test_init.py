@@ -16,7 +16,15 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.bora_one.const import CONF_MODE, DOMAIN, EVENT_BORA_ONE, MODE_BLUETOOTH
 
-from .bora_peer import EXTRACTOR, EXTRACTOR_AFTER_RUN, IDENTIFY, ZONE, FakeBoraPeer, zone_status
+from .bora_peer import (
+    EXTRACTOR,
+    EXTRACTOR_AFTER_RUN,
+    EXTRACTOR_OFF,
+    IDENTIFY,
+    ZONE,
+    FakeBoraPeer,
+    zone_status,
+)
 from .conftest import ADDRESS, FakeBluetooth
 
 P = "bora_x_pure"
@@ -256,6 +264,30 @@ async def test_refused_zone_read_keeps_other_zones(
     assert _state(hass, f"sensor.{P}_status") == "cooking"
     assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
     assert _state(hass, f"sensor.{P}_back_right_state") == "unavailable"
+
+
+async def test_switched_off_but_still_connected_shows_off(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """Zones the cooktop reports unavailable after switching off are off, not unknown."""
+    entry = await _setup(hass)
+    peer.status[EXTRACTOR + "GetExtractorStatus"] = EXTRACTOR_OFF
+    peer.unavailable_zones.update(("front_left", "back_left", "back_right", "front_right"))
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert peer.is_connected
+    assert _state(hass, f"binary_sensor.{P}_bluetooth_connection") == "on"
+    assert _state(hass, f"sensor.{P}_status") == "off"
+    assert _state(hass, f"sensor.{P}_back_left_state") == "off"
+    assert _state(hass, f"sensor.{P}_back_left_power_level") == "0"
+    assert _state(hass, f"sensor.{P}_active_zones") == "0"
+
+    peer.unavailable_zones.clear()
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
 
 
 async def test_setup_while_cooktop_is_off(
