@@ -51,9 +51,12 @@ PAIRING_FAILURES = 3
 PAIRING_GRACE = 300.0
 
 # While cooking, an X Pure was seen to drop the link every minute or two and
-# accept a new connection right away. While it is still advertising, keep the
-# last state for this long and reconnect instead of flipping to offline.
-OFFLINE_GRACE = 150.0
+# accept a new connection right away. Keep the last state for this long and
+# reconnect instead of flipping to offline. A cooktop that is switched off
+# first reports its zones unavailable (switched_off), so no grace is needed
+# then. Advertising is not checked: the cooktop does not advertise while
+# connected, so after a long connection Home Assistant no longer lists it.
+OFFLINE_GRACE = 120.0
 
 
 class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
@@ -114,8 +117,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self.data is not None
             and self.data.online
             and self._last_read is not None
+            and not self.data.switched_off
             and time.monotonic() - self._last_read < OFFLINE_GRACE
-            and self._advertising()
         )
 
     def _offline_or_last(self) -> Cooktop:
@@ -170,13 +173,17 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             except CONNECTION_ERRORS as err:
                 _LOGGER.info("Reading BORA status failed, reconnecting: %r", err)
                 await self.device.disconnect()
+            except Exception:
+                # Never turn every entity unavailable over an unexpected
+                # error; log it so it can be fixed, and reconnect.
+                _LOGGER.warning("Unexpected error reading BORA status", exc_info=True)
+                await self.device.disconnect()
             else:
                 return self._current()
 
         # Only try to connect while the cooktop is advertising (switched on).
         if not self._advertising():
-            self._last_read = None
-            return self._offline()
+            return self._offline_or_last()
         try:
             async with asyncio.timeout(CONNECT_TIMEOUT):
                 await self.device.connect()
@@ -200,6 +207,10 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             raise ConfigEntryAuthFailed("Pair Home Assistant with the cooktop again") from err
         except CONNECTION_ERRORS as err:
             _LOGGER.info("Could not connect to BORA: %r", err)
+            await self.device.disconnect()
+            return self._offline_or_last()
+        except Exception:
+            _LOGGER.warning("Unexpected error connecting to BORA", exc_info=True)
             await self.device.disconnect()
             return self._offline_or_last()
         self._pairing_failures = 0
@@ -264,14 +275,14 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
 
     @callback
     def async_on_advertisement(self) -> None:
-        """The cooktop is advertising; connect right away if we are offline."""
+        """The cooktop is advertising; connect right away if we are not connected."""
         if (
             not self._closed
             and self.connection_enabled
             and self.device is not None
             and not self.device.connected
+            and not self.device.connecting
             and self.data is not None
-            and not self.data.online
         ):
             self.config_entry.async_create_task(
                 self.hass, self.async_request_refresh(), "bora_one_connect"
