@@ -155,6 +155,10 @@ async def test_switch_off_and_on_again(
     entry = await _setup(hass)
     events = async_capture_events(hass, EVENT_BORA_ONE)
 
+    # Like a real X Pure: zones report unavailable first, then Bluetooth drops.
+    peer.status[EXTRACTOR + "GetExtractorStatus"] = EXTRACTOR_OFF
+    peer.unavailable_zones.update(("front_left", "back_left", "back_right", "front_right"))
+    await entry.runtime_data.async_refresh()
     peer.switch_off()
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.LOADED
@@ -168,6 +172,7 @@ async def test_switch_off_and_on_again(
     assert peer.sessions == 0
 
     events.clear()
+    peer.unavailable_zones.clear()
     bluetooth.advertise()
     await hass.async_block_till_done()
     assert _state(hass, f"sensor.{P}_status") == "cooking"
@@ -205,6 +210,53 @@ async def test_short_drop_keeps_last_state_and_reconnects(
     # Capabilities are read once, not on every reconnect.
     assert peer.requests.count(IDENTIFY + "GetSystemValueRangeDescriptor") == 1
     assert peer.requests.count(IDENTIFY + "GetSystemInformation") == 1
+
+
+async def test_drop_keeps_state_although_not_advertising(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer, monkeypatch
+) -> None:
+    """After a long connection HA no longer lists the cooktop; a drop is still short."""
+    entry = await _setup(hass)
+    peer.advertising = False
+    peer._drop()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"binary_sensor.{P}_bluetooth_connection") == "on"
+
+    peer.advertising = True
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert peer.is_connected
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+
+    # Without a successful read for longer than the grace period: offline.
+    monkeypatch.setattr("custom_components.bora_one.coordinator.OFFLINE_GRACE", 0)
+    peer.advertising = False
+    peer._drop()
+    await hass.async_block_till_done()
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "off"
+
+
+async def test_unexpected_error_does_not_make_entities_unavailable(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer, monkeypatch
+) -> None:
+    """An unexpected error while reading keeps the entities and reconnects."""
+    entry = await _setup(hass)
+    device = entry.runtime_data.device
+    original = device.refresh
+
+    async def broken() -> None:
+        raise KeyError("unexpected")
+
+    monkeypatch.setattr(device, "refresh", broken)
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert entry.runtime_data.last_update_success
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert peer.is_connected
+    monkeypatch.setattr(device, "refresh", original)
 
 
 async def test_drop_after_grace_goes_offline(
