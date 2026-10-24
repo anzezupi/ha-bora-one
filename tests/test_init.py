@@ -357,6 +357,29 @@ async def test_setup_while_cooktop_is_off(
     assert _state(hass, f"sensor.{P}_status") == "cooking"
 
 
+async def test_refused_connections_back_off(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """A cooktop Home Assistant still lists but that refuses connections is not hammered."""
+    peer.refuse_connections = True
+    entry = await _setup(hass)
+    coordinator = entry.runtime_data
+    await coordinator.async_refresh()
+    attempts = peer.connect_attempts
+    assert attempts >= 2
+
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()
+    assert peer.connect_attempts == attempts
+    assert _state(hass, f"sensor.{P}_status") == "off"
+
+    # Switched on: a fresh advertisement connects at once despite the back-off.
+    peer.refuse_connections = False
+    bluetooth.advertise()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+
+
 async def test_connection_switch_releases_cooktop(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

@@ -110,6 +110,9 @@ class FakeBoraPeer:
         self.confirm_delay = 0.0
         """Seconds until the user taps Connect on the cooktop."""
         self.advertising = True
+        self.refuse_connections = False
+        """Still listed by Home Assistant but every connection times out (seen when off)."""
+        self.connect_attempts = 0
         self.requests: list[str] = []
         self.status: dict[str, bytes] = {
             EXTRACTOR + "GetExtractorStatus": EXTRACTOR_LEVEL_3,
@@ -139,8 +142,11 @@ class FakeBoraPeer:
     # Connector used by BrpcConnection
 
     async def connect(self, disconnected: Callable) -> FakeBoraPeer:
+        self.connect_attempts += 1
         if not self.advertising:
             raise TimeoutError("not advertising")
+        if self.refuse_connections:
+            raise TimeoutError("connection refused")
         self._disconnected = disconnected
         self.is_connected = True
         self.sessions += 1
