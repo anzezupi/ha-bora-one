@@ -58,6 +58,12 @@ PAIRING_GRACE = 300.0
 # connected, so after a long connection Home Assistant no longer lists it.
 OFFLINE_GRACE = 120.0
 
+# A switched-off X Pure was seen to stay listed in Home Assistant for hours
+# (a stale advertisement) while every connection attempt timed out, each one
+# tying up the Bluetooth adapter for about 40 seconds. After repeated failures
+# try less often; a fresh advertisement (cooktop switched on) retries at once.
+CONNECT_BACKOFF = (0.0, 60.0, 120.0, 300.0)
+
 
 class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     """Keeps the cooktop state; offline is a normal state, not an error."""
@@ -92,6 +98,9 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self._pairing_failures = 0
         self._first_pairing_failure = 0.0
         self._last_read: float | None = None
+        self._connect_failures = 0
+        self._next_connect = 0.0
+        self._advertised = False
         self.address: str | None = entry.data.get(CONF_ADDRESS)
         self.device: BoraBleDevice | None = None
         if not self.demo:
@@ -184,6 +193,9 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         # Only try to connect while the cooktop is advertising (switched on).
         if not self._advertising():
             return self._offline_or_last()
+        if not self._advertised and time.monotonic() < self._next_connect:
+            return self._offline_or_last()
+        self._advertised = False
         try:
             async with asyncio.timeout(CONNECT_TIMEOUT):
                 await self.device.connect()
@@ -206,14 +218,22 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self._pairing_lost = True
             raise ConfigEntryAuthFailed("Pair Home Assistant with the cooktop again") from err
         except CONNECTION_ERRORS as err:
-            _LOGGER.info("Could not connect to BORA: %r", err)
+            _LOGGER.log(
+                logging.DEBUG if self._connect_failures else logging.INFO,
+                "Could not connect to BORA: %r",
+                err,
+            )
             await self.device.disconnect()
+            self._back_off()
             return self._offline_or_last()
         except Exception:
             _LOGGER.warning("Unexpected error connecting to BORA", exc_info=True)
             await self.device.disconnect()
+            self._back_off()
             return self._offline_or_last()
         self._pairing_failures = 0
+        self._connect_failures = 0
+        self._next_connect = 0.0
         cooktop = self._current()
         _LOGGER.info(
             "Connected to BORA %s: %d active zone(s), extractor %s",
@@ -223,6 +243,12 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         self._update_device_registry(cooktop)
         return cooktop
+
+    def _back_off(self) -> None:
+        """Delay the next connection attempt after a failed one."""
+        delay = CONNECT_BACKOFF[min(self._connect_failures, len(CONNECT_BACKOFF) - 1)]
+        self._connect_failures += 1
+        self._next_connect = time.monotonic() + delay
 
     @callback
     def _on_push(self) -> None:
@@ -276,6 +302,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     @callback
     def async_on_advertisement(self) -> None:
         """The cooktop is advertising; connect right away if we are not connected."""
+        self._advertised = True
         if (
             not self._closed
             and self.connection_enabled
@@ -291,6 +318,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     async def async_set_connection_enabled(self, enabled: bool) -> None:
         """Hold or release the Bluetooth connection (lets the BORA One app connect)."""
         self.connection_enabled = enabled
+        self._next_connect = 0.0
         await self.async_refresh()
 
     async def async_shutdown(self) -> None:
