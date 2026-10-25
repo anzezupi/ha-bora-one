@@ -12,6 +12,8 @@ from collections.abc import Callable
 import json
 from pathlib import Path
 
+from bleak.exc import BleakError
+
 from custom_components.bora_one.ble import wire
 from custom_components.bora_one.ble.transport import (
     BOND_UUID,
@@ -113,6 +115,8 @@ class FakeBoraPeer:
         self.refuse_connections = False
         """Still listed by Home Assistant but every connection times out (seen when off)."""
         self.connect_attempts = 0
+        # Accepts the link but refuses every write (GATT error 14, seen after switch-on).
+        self.refuse_writes = False
         self.requests: list[str] = []
         self.status: dict[str, bytes] = {
             EXTRACTOR + "GetExtractorStatus": EXTRACTOR_LEVEL_3,
@@ -192,6 +196,8 @@ class FakeBoraPeer:
 
     async def write_gatt_char(self, uuid: str, data: bytes, response: bool) -> None:
         assert uuid == WRITE_UUID and len(data) <= 20
+        if self.refuse_writes:
+            raise BleakError("GATT Protocol Error: Unlikely Error")
         for payload in self._decoder.feed(data):
             self._handle(wire.Message(payload))
 

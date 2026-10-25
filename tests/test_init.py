@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+import time
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
@@ -373,6 +374,12 @@ async def test_refused_connections_back_off(
     assert peer.connect_attempts == attempts
     assert _state(hass, f"sensor.{P}_status") == "off"
 
+    # An advertisement received since the last failure retries at once, even when
+    # Home Assistant does not call back for a repeated identical advertisement.
+    bluetooth.last_advertisement = time.monotonic()
+    await coordinator.async_refresh()
+    assert peer.connect_attempts > attempts
+
     # Switched on: a fresh advertisement connects at once despite the back-off.
     peer.refuse_connections = False
     bluetooth.advertise()
@@ -414,6 +421,26 @@ async def test_failing_reconnects_while_cooking_keep_state(
     await asyncio.sleep(0.3)
     await coordinator.async_refresh()
     assert _state(hass, f"sensor.{P}_status") == "off"
+
+
+async def test_cooktop_that_answers_is_retried_without_back_off(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """A connection that reaches the cooktop but then fails means it is on: retry soon."""
+    peer.advertising = False
+    entry = await _setup(hass)
+    coordinator = entry.runtime_data
+    peer.advertising = True
+    peer.refuse_writes = True
+    for _ in range(3):
+        attempts = peer.connect_attempts
+        await coordinator.async_refresh()
+        assert peer.connect_attempts > attempts
+    assert _state(hass, f"sensor.{P}_status") == "off"
+
+    peer.refuse_writes = False
+    await coordinator.async_refresh()
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
 
 
 async def test_connection_switch_releases_cooktop(

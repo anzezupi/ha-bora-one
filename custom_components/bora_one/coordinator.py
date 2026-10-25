@@ -65,7 +65,11 @@ OFFLINE_GRACE = 120.0
 # (a stale advertisement) while every connection attempt timed out, each one
 # tying up the Bluetooth adapter for about 40 seconds. After repeated failures
 # try less often; a fresh advertisement (cooktop switched on) retries at once.
-# No back-off within the grace: while cooking, reconnects must not wait.
+# No back-off within the grace: while cooking, reconnects must not wait. An
+# attempt that reached the cooktop (it answered, then failed later, e.g. GATT
+# error 14) or an advertisement received after the last failure also means it
+# is on: Home Assistant does not report repeated identical advertisements, so
+# the callback alone was seen to miss a switch-on for 20 minutes.
 CONNECT_BACKOFF = (0.0, 60.0, 120.0, 300.0)
 
 
@@ -104,6 +108,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self._last_alive: float | None = None
         self._connect_failures = 0
         self._next_connect = 0.0
+        self._failed_at = 0.0
         self._advertised = False
         self.address: str | None = entry.data.get(CONF_ADDRESS)
         self.device: BoraBleDevice | None = None
@@ -210,6 +215,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             not self._advertised
             and not self._within_grace()
             and time.monotonic() < self._next_connect
+            and self._last_advertisement() <= self._failed_at
         ):
             return self._offline_or_last()
         self._advertised = False
@@ -263,7 +269,11 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
 
     def _back_off(self) -> None:
         """Delay the next connection attempt after a failed one."""
-        if self._within_grace():
+        assert self.device is not None
+        self._failed_at = time.monotonic()
+        if self._within_grace() or self.device.connection.linked:
+            self._connect_failures = 0
+            self._next_connect = 0.0
             return
         delay = CONNECT_BACKOFF[min(self._connect_failures, len(CONNECT_BACKOFF) - 1)]
         self._connect_failures += 1

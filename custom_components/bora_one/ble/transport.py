@@ -120,6 +120,8 @@ class BrpcConnection:
         self._closing = False
         self._failed = False
         self.bond_state: int | None = None
+        # True once the last connection attempt reached the cooktop (it is on).
+        self.linked = False
         self.last_protocol_error: str | None = None
         self._last_rpc_error: dict | None = None
 
@@ -213,6 +215,7 @@ class BrpcConnection:
         """Open one connection; return None when ready, else the pairing action taken."""
         self._closing = False
         self._failed = False
+        self.linked = False
         self._decoder.reset()
         self.last_protocol_error = None
         self._last_rpc_error = None
@@ -235,6 +238,7 @@ class BrpcConnection:
                 self._client = client
                 if not client.is_connected:
                     raise ConnectionLost("Connector returned a disconnected client")
+                self.linked = True
 
                 def on_notification(_sender, value: bytearray) -> None:
                     if self._generation is generation and not self._failed:
