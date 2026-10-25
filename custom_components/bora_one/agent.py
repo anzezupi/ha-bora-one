@@ -39,7 +39,7 @@ def _agent_class():
 
         def __init__(self, address: str) -> None:
             super().__init__("org.bluez.Agent1")
-            self._suffix = _device_path_suffix(address)
+            self._suffix = _device_path_suffix(address).upper()
 
         def _check(self, device: str) -> None:
             if not device.upper().endswith(self._suffix):
