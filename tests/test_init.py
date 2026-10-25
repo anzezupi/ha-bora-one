@@ -457,7 +457,8 @@ async def test_single_failed_bond_check_does_not_start_reauth(
     await entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
     assert not _reauth_started(hass, entry)
-    assert _state(hass, f"sensor.{P}_status") == "off"
+    # Seen on a real X Pure during drops while cooking: the last state is kept.
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
 
     peer.bonded = True
     await entry.runtime_data.async_refresh()
