@@ -53,7 +53,7 @@ async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
             await coordinator.device.disconnect()
     device = BoraBleDevice(create_connection(hass, address))
     try:
-        async with pairing_agent(), asyncio.timeout(PAIRING_TIMEOUT):
+        async with pairing_agent(address), asyncio.timeout(PAIRING_TIMEOUT):
             await device.connect(pair=True, subscribe=False, read_status=False)
         product = device.information.get("product_name")
         return {

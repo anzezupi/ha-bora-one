@@ -3,6 +3,7 @@
 The cooktop asks for a pairing confirmation (like the "Pair" prompt on a
 phone). Without an agent BlueZ cancels the pairing, so while the user pairs
 from the config flow we register an agent that accepts the confirmation.
+Only the cooktop being paired is accepted; any other device is rejected.
 The user still has to approve pairing with the Connect button on the cooktop.
 
 Annotations are D-Bus signatures read by dbus-fast, so this module must not
@@ -20,6 +21,11 @@ AGENT_PATH = "/io/home_assistant/bora_one/agent"
 CAPABILITY = "DisplayYesNo"
 
 
+def _device_path_suffix(address: str) -> str:
+    """Return the end of the BlueZ object path for a device address."""
+    return "/dev_" + address.upper().replace(":", "_")
+
+
 def _agent_class():
     from dbus_fast import DBusError  # noqa: PLC0415
     from dbus_fast.service import ServiceInterface, method  # noqa: PLC0415
@@ -29,10 +35,16 @@ def _agent_class():
         return DBusError("org.bluez.Error.Rejected", f"{what} not supported")
 
     class PairingAgent(ServiceInterface):
-        """org.bluez.Agent1 that accepts confirmation requests."""
+        """org.bluez.Agent1 that accepts confirmation requests from the cooktop only."""
 
-        def __init__(self) -> None:
+        def __init__(self, address: str) -> None:
             super().__init__("org.bluez.Agent1")
+            self._suffix = _device_path_suffix(address)
+
+        def _check(self, device: str) -> None:
+            if not device.upper().endswith(self._suffix):
+                _LOGGER.warning("Rejecting pairing request from another device: %s", device)
+                raise DBusError("org.bluez.Error.Rejected", "not the cooktop being paired")
 
         @method()
         def Release(self):  # noqa: N802
@@ -56,14 +68,17 @@ def _agent_class():
 
         @method()
         def RequestConfirmation(self, device: "o", passkey: "u"):  # noqa: F821, N802
+            self._check(device)
             _LOGGER.info("Accepting BORA pairing confirmation (code %06d)", passkey)
 
         @method()
         def RequestAuthorization(self, device: "o"):  # noqa: F821, N802
+            self._check(device)
             _LOGGER.info("Accepting BORA pairing authorization")
 
         @method()
         def AuthorizeService(self, device: "o", uuid: "s"):  # noqa: F821, N802
+            self._check(device)
             _LOGGER.debug("Authorizing service %s", uuid)
 
         @method()
@@ -74,7 +89,7 @@ def _agent_class():
 
 
 @asynccontextmanager
-async def pairing_agent() -> AsyncIterator[None]:
+async def pairing_agent(address: str) -> AsyncIterator[None]:
     """Register a default BlueZ agent while pairing; no-op where BlueZ is unavailable."""
     bus = manager = None
     try:
@@ -83,7 +98,7 @@ async def pairing_agent() -> AsyncIterator[None]:
 
         async with asyncio.timeout(5):
             bus = await MessageBus(bus_type=BusType.SYSTEM, negotiate_unix_fd=False).connect()
-            bus.export(AGENT_PATH, _agent_class()())
+            bus.export(AGENT_PATH, _agent_class()(address))
             introspection = await bus.introspect("org.bluez", "/org/bluez")
             manager = bus.get_proxy_object(
                 "org.bluez", "/org/bluez", introspection

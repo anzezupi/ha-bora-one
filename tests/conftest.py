@@ -74,7 +74,8 @@ def bluetooth(peer: FakeBoraPeer) -> Generator[FakeBluetooth]:
         return peer.connection(disconnected)
 
     @asynccontextmanager
-    async def no_agent():
+    async def no_agent(address):
+        assert address == ADDRESS
         yield
 
     service_info = SimpleNamespace(address=ADDRESS, name="X PURE", service_uuids=[SERVICE_UUID])
