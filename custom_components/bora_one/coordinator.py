@@ -56,12 +56,16 @@ PAIRING_GRACE = 300.0
 # first reports its zones unavailable (switched_off), so no grace is needed
 # then. Advertising is not checked: the cooktop does not advertise while
 # connected, so after a long connection Home Assistant no longer lists it.
+# The grace counts from the last sign of life: a successful read or a fresh
+# advertisement (a switched-off cooktop stops advertising). Reconnects that
+# keep failing while the cooktop still advertises keep the last state.
 OFFLINE_GRACE = 120.0
 
 # A switched-off X Pure was seen to stay listed in Home Assistant for hours
 # (a stale advertisement) while every connection attempt timed out, each one
 # tying up the Bluetooth adapter for about 40 seconds. After repeated failures
 # try less often; a fresh advertisement (cooktop switched on) retries at once.
+# No back-off within the grace: while cooking, reconnects must not wait.
 CONNECT_BACKOFF = (0.0, 60.0, 120.0, 300.0)
 
 
@@ -97,7 +101,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self._pairing_lost = False
         self._pairing_failures = 0
         self._first_pairing_failure = 0.0
-        self._last_read: float | None = None
+        self._last_alive: float | None = None
         self._connect_failures = 0
         self._next_connect = 0.0
         self._advertised = False
@@ -120,26 +124,35 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             is not None
         )
 
+    def _last_advertisement(self) -> float:
+        """Return when Home Assistant last received an advertisement (0 if never)."""
+        info = bluetooth.async_last_service_info(self.hass, self.address, connectable=True)
+        return info.time if info is not None else 0.0
+
     def _within_grace(self) -> bool:
         """Return True if a short drop should keep the last known state."""
-        return (
-            self.data is not None
-            and self.data.online
-            and self._last_read is not None
-            and not self.data.switched_off
-            and time.monotonic() - self._last_read < OFFLINE_GRACE
-        )
+        if (
+            self.data is None
+            or not self.data.online
+            or self.data.switched_off
+            or self._last_alive is None
+        ):
+            return False
+        if time.monotonic() - self._last_alive < OFFLINE_GRACE:
+            return True
+        self._last_alive = max(self._last_alive, self._last_advertisement())
+        return time.monotonic() - self._last_alive < OFFLINE_GRACE
 
     def _offline_or_last(self) -> Cooktop:
         if self._within_grace():
             assert self.data is not None
             return self.data
-        self._last_read = None
+        self._last_alive = None
         return self._offline()
 
     def _current(self) -> Cooktop:
         assert self.device is not None
-        self._last_read = time.monotonic()
+        self._last_alive = time.monotonic()
         cooktop = map_cooktop(
             self._identity.appliance_id,
             self._identity.name,
@@ -193,7 +206,11 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         # Only try to connect while the cooktop is advertising (switched on).
         if not self._advertising():
             return self._offline_or_last()
-        if not self._advertised and time.monotonic() < self._next_connect:
+        if (
+            not self._advertised
+            and not self._within_grace()
+            and time.monotonic() < self._next_connect
+        ):
             return self._offline_or_last()
         self._advertised = False
         try:
@@ -214,7 +231,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
                     self._pairing_failures,
                     err,
                 )
-                return self._offline()
+                return self._offline_or_last()
             self._pairing_lost = True
             raise ConfigEntryAuthFailed("Pair Home Assistant with the cooktop again") from err
         except CONNECTION_ERRORS as err:
@@ -246,6 +263,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
 
     def _back_off(self) -> None:
         """Delay the next connection attempt after a failed one."""
+        if self._within_grace():
+            return
         delay = CONNECT_BACKOFF[min(self._connect_failures, len(CONNECT_BACKOFF) - 1)]
         self._connect_failures += 1
         self._next_connect = time.monotonic() + delay
@@ -287,7 +306,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         if keep:
             return
-        self._last_read = None
+        self._last_alive = None
         new = self._offline()
         self._fire_events(new)
         self.async_set_updated_data(new)
@@ -303,6 +322,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     def async_on_advertisement(self) -> None:
         """The cooktop is advertising; connect right away if we are not connected."""
         self._advertised = True
+        if self._last_alive is not None:
+            self._last_alive = time.monotonic()
         if (
             not self._closed
             and self.connection_enabled

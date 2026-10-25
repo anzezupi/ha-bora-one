@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import asynccontextmanager
+import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -42,10 +43,12 @@ class FakeBluetooth:
     def __init__(self, peer: FakeBoraPeer) -> None:
         self.peer = peer
         self.advertisement_callbacks: list = []
+        self.last_advertisement: float | None = None
 
     def advertise(self) -> None:
         """Deliver an advertisement from the cooktop."""
         self.peer.advertising = True
+        self.last_advertisement = time.monotonic()
         for callback in self.advertisement_callbacks:
             callback(None, None)
 
@@ -83,6 +86,14 @@ def bluetooth(peer: FakeBoraPeer) -> Generator[FakeBluetooth]:
         patch(
             "homeassistant.components.bluetooth.async_ble_device_from_address",
             side_effect=lambda hass, address, connectable=True: object() if peer.advertising else None,
+        ),
+        patch(
+            "homeassistant.components.bluetooth.async_last_service_info",
+            side_effect=lambda hass, address, connectable=True: (
+                SimpleNamespace(time=fake.last_advertisement)
+                if fake.last_advertisement is not None
+                else None
+            ),
         ),
         patch(
             "homeassistant.components.bluetooth.async_register_callback",

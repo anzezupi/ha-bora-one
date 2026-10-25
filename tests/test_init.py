@@ -380,6 +380,42 @@ async def test_refused_connections_back_off(
     assert _state(hass, f"sensor.{P}_status") == "cooking"
 
 
+async def test_failing_reconnects_while_cooking_keep_state(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer, monkeypatch
+) -> None:
+    """Drops while cooking with failing reconnects: no off, no back-off while it advertises."""
+    monkeypatch.setattr("custom_components.bora_one.coordinator.OFFLINE_GRACE", 0.2)
+    entry = await _setup(hass)
+    coordinator = entry.runtime_data
+    peer.refuse_connections = True
+    peer._drop()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+
+    # Longer than the grace since the last read, but the cooktop still advertises.
+    await asyncio.sleep(0.3)
+    bluetooth.advertise()
+    for _ in range(3):
+        attempts = peer.connect_attempts
+        await coordinator.async_refresh()
+        assert peer.connect_attempts > attempts
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+    assert _state(hass, f"sensor.{P}_active_zones") != "0"
+
+    peer.refuse_connections = False
+    await coordinator.async_refresh()
+    assert peer.is_connected
+    assert _state(hass, f"sensor.{P}_status") == "cooking"
+
+    # Switched off while disconnected: no more advertisements, so off after the grace.
+    peer.refuse_connections = True
+    peer._drop()
+    await hass.async_block_till_done()
+    await asyncio.sleep(0.3)
+    await coordinator.async_refresh()
+    assert _state(hass, f"sensor.{P}_status") == "off"
+
+
 async def test_connection_switch_releases_cooktop(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:
