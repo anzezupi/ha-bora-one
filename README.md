@@ -54,10 +54,19 @@ the cooktop is switched on again.
    **Submit** once, then tap the pulsing **Connect** button on the cooktop and
    wait up to a minute.
 
-**One connection at a time:** the cooktop accepts one Bluetooth client. While
-Home Assistant is connected, the BORA One app cannot connect. Turn off the
-**Allow Bluetooth connection** switch of the device to let the app connect,
-and turn it on again afterwards.
+### Home Assistant and the BORA One app at the same time
+
+**Not possible.** The cooktop talks to one Bluetooth client at a time. While
+Home Assistant is connected, the BORA One app cannot connect, and while the app
+is connected (even just open in the background), Home Assistant cannot read
+the cooktop: it connects but every request is refused.
+
+To use the app:
+
+1. Turn off the **Allow Bluetooth connection** switch of the BORA device in
+   Home Assistant.
+2. Use the app, then close it completely (or turn off the phone's Bluetooth).
+3. Turn the switch on again. Home Assistant reconnects within about a minute.
 
 There is also a **demo cooktop** (simulated cooking session) to try the
 entities, dashboards and automations without an appliance.
@@ -69,6 +78,7 @@ entities, dashboards and automations without an appliance.
 | The Connect button never pulses, log shows `BleakOutOfConnectionSlotsError` | Set the Bluetooth scanning mode to **Active** (see Requirements). |
 | `AuthenticationCanceled` or *Pair Home Assistant with the cooktop again* | Use **Reconfigure** on the integration page and pair again; keep the phone's Bluetooth off. |
 | Entities stay *Off* while cooking | Check the *Bluetooth connection* sensor and the *Allow Bluetooth connection* switch; check the adapter is in range. |
+| Status stays *Off* for a long time after switching on; the log shows `GATT Protocol Error: Unlikely Error` | The BORA One app is probably open on a phone. Close it (or turn off the phone's Bluetooth). |
 | One zone is *unavailable* | Some firmware refuses single zone reads now and then; the other zones keep working. |
 
 For a detailed log add this to `configuration.yaml` and restart:

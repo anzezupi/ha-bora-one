@@ -343,6 +343,24 @@ async def test_switched_off_but_still_connected_shows_off(
     assert _state(hass, f"sensor.{P}_back_left_power_level") == "7"
 
 
+async def test_drop_during_after_run_keeps_state(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """Cooktop off but the extractor still running: a dropped link is not shown as off."""
+    entry = await _setup(hass)
+    peer.status[EXTRACTOR + "GetExtractorStatus"] = EXTRACTOR_AFTER_RUN
+    peer.unavailable_zones.update(("front_left", "back_left", "back_right", "front_right"))
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "after_run"
+
+    peer.advertising = False
+    peer._drop()
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_status") == "after_run"
+    assert _state(hass, f"binary_sensor.{P}_bluetooth_connection") == "on"
+
+
 async def test_setup_while_cooktop_is_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

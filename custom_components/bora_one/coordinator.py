@@ -54,7 +54,8 @@ PAIRING_GRACE = 300.0
 # accept a new connection right away. Keep the last state for this long and
 # reconnect instead of flipping to offline. A cooktop that is switched off
 # first reports its zones unavailable (switched_off), so no grace is needed
-# then. Advertising is not checked: the cooktop does not advertise while
+# then, unless the extractor still runs (after-run): the link drops about
+# every nine minutes then too. Advertising is not checked: the cooktop does not advertise while
 # connected, so after a long connection Home Assistant no longer lists it.
 # The grace counts from the last sign of life: a successful read or a fresh
 # advertisement (a switched-off cooktop stops advertising). Reconnects that
@@ -134,12 +135,16 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         info = bluetooth.async_last_service_info(self.hass, self.address, connectable=True)
         return info.time if info is not None else 0.0
 
+    def _extractor_running(self) -> bool:
+        extractor = self.data.extractor if self.data is not None else None
+        return extractor is not None and extractor.mode is not ExtractorMode.OFF
+
     def _within_grace(self) -> bool:
         """Return True if a short drop should keep the last known state."""
         if (
             self.data is None
             or not self.data.online
-            or self.data.switched_off
+            or (self.data.switched_off and not self._extractor_running())
             or self._last_alive is None
         ):
             return False
