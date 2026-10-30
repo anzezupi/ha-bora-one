@@ -303,8 +303,9 @@ class UnencryptedProxyPeer(FakeBoraPeer):
         return bytearray()
 
     async def start_notify(self, uuid, callback) -> None:
+        encrypted = self.encrypted
         await super().start_notify(uuid, callback)
-        self.encrypted = False  # an ESPHome proxy does not encrypt on its own
+        self.encrypted = encrypted  # an ESPHome proxy does not encrypt on its own
 
     async def pair(self) -> None:
         self.pair_calls += 1

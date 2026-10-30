@@ -215,7 +215,7 @@ class BrpcConnection:
         request ("Insufficient encryption"). With a stored bond, pairing again
         only encrypts the link.
         """
-        if not _via_esphome(client):
+        if not _via_esphome(client) or getattr(self, "_encrypted", None) is client:
             return
         try:
             async with asyncio.timeout(15):
@@ -223,6 +223,7 @@ class BrpcConnection:
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Encrypting the link through the ESPHome proxy failed: %r", err)
         else:
+            self._encrypted = client
             _LOGGER.debug("Encrypted the link through the ESPHome proxy")
 
     async def _pair_and_wait(self, client: GattClient) -> int | None:
@@ -252,10 +253,15 @@ class BrpcConnection:
                     if _stale_gatt(err):
                         await _clear_gatt_cache(client)
                         return None
+                if paired and _via_esphome(client):
+                    # The proxy reports success only once the link is paired and
+                    # encrypted; an X BO does not confirm the bond on the bond
+                    # characteristic on this link. Keep using it.
+                    _LOGGER.debug("ESPHome proxy reports the link paired")
+                    return 1
                 if paired:
-                    # Pairing finished but the bond is not confirmed: an X BO
-                    # behind an ESPHome proxy kept reading the GATT table cached
-                    # before pairing. Rediscover the services on a new link.
+                    # Pairing finished but the bond is not confirmed: rediscover
+                    # the services on a new link (the GATT table may change).
                     polls_after_pairing += 1
                     if polls_after_pairing >= 3:
                         _LOGGER.debug("Paired, bond not confirmed; refreshing GATT services")
@@ -300,6 +306,9 @@ class BrpcConnection:
                 if not client.is_connected:
                     raise ConnectionLost("Connector returned a disconnected client")
                 self.linked = True
+                # Through an ESPHome proxy, encrypt with the stored bond first,
+                # like a phone does; nothing on the X BO is readable before.
+                await self._encrypt(client)
 
                 def on_notification(_sender, value: bytearray) -> None:
                     if self._generation is generation and not self._failed:
@@ -341,7 +350,13 @@ class BrpcConnection:
                             return "pair"  # GATT table changed; continue on a new link
                         state = result
                     if state != 1:
-                        if "unpair" not in done and hasattr(client, "unpair"):
+                        if (
+                            "unpair" not in done
+                            and hasattr(client, "unpair")
+                            # Through a proxy this deletes the bond the proxy
+                            # just stored; the appliance keeps its side.
+                            and not _via_esphome(client)
+                        ):
                             # The adapter may hold keys the cooktop has forgotten.
                             done.add("unpair")
                             done.discard("pair")
