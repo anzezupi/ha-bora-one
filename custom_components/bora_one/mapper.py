@@ -218,6 +218,13 @@ def map_cooktop(
     return cooktop
 
 
+def _program_name(name: str | None) -> str | None:
+    """Return the running programme's name; the oven reports a placeholder when idle."""
+    if not name or name.upper() == "NO_PROGRAM_IS_RUNNING":
+        return None
+    return name
+
+
 def _positive(value: int | None) -> int | None:
     return value if value is not None and value > 0 else None
 
@@ -237,7 +244,7 @@ def map_oven_state(status: dict[str, Any], full: dict[str, Any] | None) -> Oven:
             else OvenOperatingState.UNSPECIFIED
         ),
         program=OvenProgram(program) if program in set(OvenProgram) else OvenProgram.NONE,
-        program_name=xbo.get("program_name") or None,
+        program_name=_program_name(xbo.get("program_name")),
         cooking_step=overview.get("cooking_step") or None,
         current_temperature=overview.get("current_temperature"),
         target_temperature=_positive(overview.get("target_temperature")),

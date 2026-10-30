@@ -132,8 +132,9 @@ def test_codecs() -> None:
     assert full["program_progress"] == 30
     assert full["overview"]["program"] == "automatic_cooking"
 
-    # proto3 default 0 = OPEN
-    assert oven.decode_overview(overview(door_closed=False))["door_open"] is True
+    # proto3 drops the default (0 = OPEN): an absent door state is unknown
+    assert oven.decode_overview(overview(door_closed=False))["door_open"] is None
+    assert oven.decode_overview(overview() + wire.uint(13, 0))["door_open"] is True
 
 
 def test_mapping() -> None:
@@ -225,7 +226,7 @@ async def test_oven_entities(
     peer.push(oven.STREAM_PATH, device_status(turned_on=True, state=1, door_closed=False))
     await hass.async_block_till_done()
     assert _state(hass, f"sensor.{P}_status") == "standby"
-    assert _state(hass, f"binary_sensor.{P}_door") == "on"
+    assert _state(hass, f"binary_sensor.{P}_door") == "unknown"
     assert _state(hass, f"sensor.{P}_target_temperature") == "unknown"
 
 

@@ -134,7 +134,8 @@ def decode_overview(body: bytes) -> dict[str, Any]:
         "xbo": _optional(message, 10, _xbo_overview),
         "has_hz": message.has(11),
         "program_remaining": message.int32(12),
-        "door_open": message.int32(13) == DOOR_OPEN,
+        # proto3 drops the default (0 = OPEN): only a sent value is trusted.
+        "door_open": (message.int32(13) == DOOR_OPEN) if message.has(13) else None,
     }
 
 
