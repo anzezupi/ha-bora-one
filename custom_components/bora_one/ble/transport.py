@@ -82,6 +82,35 @@ class Subscription:
     callback: UpdateCallback
 
 
+def _stale_gatt(err: BaseException) -> bool:
+    """Return True for errors caused by a GATT table cached before it changed."""
+    text = str(err).lower()
+    return "invalid handle" in text or "not found" in text
+
+
+def _via_esphome(client: GattClient) -> bool:
+    """Return True when the link runs through an ESPHome Bluetooth proxy."""
+    backend = getattr(client, "_backend", None)
+    return type(backend).__name__ == "ESPHomeClient"
+
+
+async def _clear_gatt_cache(client: GattClient) -> None:
+    """Forget the services cached by Home Assistant and the ESPHome proxy.
+
+    Only for ESPHome proxies: on BlueZ, clearing the cache removes the device
+    and with it the bond.
+    """
+    clear = getattr(client, "clear_cache", None)
+    if clear is None or not _via_esphome(client):
+        return
+    try:
+        await clear()
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.debug("Clearing the GATT cache failed: %r", err)
+    else:
+        _LOGGER.debug("Cleared the GATT cache")
+
+
 class BrpcConnection:
     """One connection generation; every connect receives a fresh GATT client.
 
@@ -162,8 +191,9 @@ class BrpcConnection:
 
     async def _read_bond_state(self, client: GattClient) -> int:
         state = bytes(await client.read_gatt_char(BOND_UUID))
-        if len(state) != 1 or state[0] not in (0, 1, 2):
+        if len(state) != 1 or state[0] not in (0, 1, 2, 3):
             raise ProtocolError("Invalid bonding status")
+        # 3 = bonding in progress (BORA One app: NOT_BONDED, BONDED, FAULTY_BOND, BONDING)
         return state[0]
 
     async def _initial_bond_state(self, client: GattClient, *, pair: bool) -> int:
@@ -186,10 +216,13 @@ class BrpcConnection:
         loop = asyncio.get_running_loop()
         pairing = asyncio.ensure_future(client.pair())
         deadline = loop.time() + self.pair_wait
+        polls_after_pairing = 0
         try:
             while True:
+                paired = False
                 if pairing.done() and not pairing.cancelled():
-                    pairing.exception()  # retrieved; a failed pair() may still bond later
+                    # Retrieved; a failed pair() may still bond later.
+                    paired = pairing.exception() is None
                 with suppress(Exception):
                     await client.read_gatt_char(RESPONSE_UUID)
                 try:
@@ -198,7 +231,17 @@ class BrpcConnection:
                 except ProtocolError:
                     raise
                 except Exception as err:  # noqa: BLE001
-                    if "not found" in str(err).lower():
+                    if _stale_gatt(err):
+                        await _clear_gatt_cache(client)
+                        return None
+                if paired:
+                    # Pairing finished but the bond is not confirmed: an X BO
+                    # behind an ESPHome proxy kept reading the GATT table cached
+                    # before pairing. Rediscover the services on a new link.
+                    polls_after_pairing += 1
+                    if polls_after_pairing >= 3:
+                        _LOGGER.debug("Paired, bond not confirmed; refreshing GATT services")
+                        await _clear_gatt_cache(client)
                         return None
                 if not client.is_connected:
                     raise ConnectionLost("Bluetooth disconnected while pairing")
@@ -252,6 +295,10 @@ class BrpcConnection:
                     notifying = True
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug("Subscribing before bond check failed: %r", err)
+                    if _stale_gatt(err) and "cache" not in done:
+                        done.add("cache")
+                        await _clear_gatt_cache(client)
+                        return "cache"
                 state = await self._initial_bond_state(client, pair=pair)
                 _LOGGER.debug("Connected; bond state %s", state)
                 if state != 1:
@@ -293,7 +340,9 @@ class BrpcConnection:
                 try:
                     await client.start_notify(RESPONSE_UUID, on_notification)
                 except Exception as err:
-                    if "pair" in done and "not found" in str(err).lower():
+                    if _stale_gatt(err) and ("pair" in done or "cache" not in done):
+                        done.add("cache")
+                        await _clear_gatt_cache(client)
                         return "pair"  # GATT table changed after pairing
                     raise
                 return None

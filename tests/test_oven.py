@@ -249,3 +249,39 @@ async def test_probe_detects_oven(
     details = await async_pair_and_probe(hass, ADDRESS)
     assert details == {"kind": "oven", "zones": [], "extractor": False, "model": "X BO"}
     assert peer.requests == [IDENTIFY]
+
+
+class ESPHomeClient:
+    """Stands in for the ESPHome backend type of a Home Assistant client."""
+
+
+class StaleCachePeer(FakeBoraPeer):
+    """A proxy whose cached GATT table is stale until the cache is cleared."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._backend = ESPHomeClient()
+        self.stale = True
+        self.cleared = 0
+
+    async def start_notify(self, uuid, callback) -> None:
+        if self.stale:
+            raise RuntimeError("Bluetooth GATT Error handle=21 error=1 description=Invalid handle")
+        await super().start_notify(uuid, callback)
+
+    async def clear_cache(self) -> bool:
+        self.cleared += 1
+        self.stale = False
+        return True
+
+
+async def test_stale_proxy_gatt_cache_is_cleared() -> None:
+    """'Invalid handle' from an ESPHome proxy clears its GATT cache and reconnects."""
+    peer = StaleCachePeer()
+    oven_peer(peer)
+    connection = peer.connection()
+    await connection.connect()
+    assert peer.cleared == 1
+    assert connection.connected
+    assert oven.decode_information(await connection.rpc(*oven.get_information()))["fd"]
+    await connection.disconnect()
