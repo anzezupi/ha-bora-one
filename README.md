@@ -125,6 +125,29 @@ logger:
 | Active, Residual heat | binary sensor | |
 | Assist confirmation required | binary sensor | the cooktop waits for you |
 
+### Oven (X BO, experimental)
+
+The BORA X BO steam oven speaks the same Bluetooth transport but a newer
+service family (`generic.*` / `bs_sys.*`). It advertises as `BORA X BO`
+without the BORA service UUID and is recognised by name and manufacturer
+data. Message layouts come from the BORA One Android app; units are assumed
+(°C, %, seconds) and can be checked in the diagnostics.
+
+| Entity | Type | Notes |
+|---|---|---|
+| Status | sensor (enum) | off, standby, cooking, paused, error |
+| Programme | sensor (enum) | none, manual_cooking, automatic_cooking, special_program, cleaning |
+| Programme name, Cooking step | sensor | as reported by the oven |
+| Cooking chamber temperature / Target temperature | sensor (°C) | |
+| Cooking chamber humidity / Target humidity | sensor (%) | |
+| Core temperature / Target core temperature | sensor (°C) | core temperature probe |
+| Cooking step end, Programme end | sensor (timestamp) | |
+| Programme progress | sensor (%) | if the oven answers the full status |
+| Operating hours | sensor (h) | diagnostic |
+| Door | binary sensor (door) | |
+| Cooking, Paused, Child lock | binary sensor | |
+| Filter change | binary sensor (problem) | diagnostic |
+
 ## Events
 
 `bora_one_event` with a `type` field:

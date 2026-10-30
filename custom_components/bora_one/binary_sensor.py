@@ -40,6 +40,14 @@ def _has_extractor(coordinator: BoraOneCoordinator) -> bool:
     return coordinator.has_extractor
 
 
+def _is_cooktop(coordinator: BoraOneCoordinator) -> bool:
+    return not coordinator.is_oven
+
+
+def _is_oven(coordinator: BoraOneCoordinator) -> bool:
+    return coordinator.is_oven
+
+
 COOKTOP_BINARY_SENSORS: tuple[BoraOneBinarySensorDescription, ...] = (
     BoraOneBinarySensorDescription(
         key="online",
@@ -58,6 +66,7 @@ COOKTOP_BINARY_SENSORS: tuple[BoraOneBinarySensorDescription, ...] = (
         key="residual_heat",
         translation_key="residual_heat",
         device_class=BinarySensorDeviceClass.HEAT,
+        exists_fn=_is_cooktop,
         value_fn=lambda c: c.has_residual_heat,
     ),
     BoraOneBinarySensorDescription(
@@ -73,6 +82,7 @@ COOKTOP_BINARY_SENSORS: tuple[BoraOneBinarySensorDescription, ...] = (
     BoraOneBinarySensorDescription(
         key="cleaning_lock",
         translation_key="cleaning_lock",
+        exists_fn=_is_cooktop,
         value_fn=lambda c: c.cleaning_lock,
     ),
     BoraOneBinarySensorDescription(
@@ -96,6 +106,22 @@ COOKTOP_BINARY_SENSORS: tuple[BoraOneBinarySensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         exists_fn=_has_extractor,
         value_fn=lambda c: c.extractor.filter_service_required if c.extractor else None,
+    ),
+    # Oven (X BO)
+    BoraOneBinarySensorDescription(
+        key="door",
+        translation_key="door",
+        device_class=BinarySensorDeviceClass.DOOR,
+        exists_fn=_is_oven,
+        value_fn=lambda c: c.oven.door_open if c.oven and c.online else None,
+    ),
+    BoraOneBinarySensorDescription(
+        key="oven_filter_warning",
+        translation_key="oven_filter_warning",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        exists_fn=_is_oven,
+        value_fn=lambda c: c.oven.filter_warning if c.oven else None,
     ),
 )
 

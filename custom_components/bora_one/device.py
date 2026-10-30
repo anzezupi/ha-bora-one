@@ -13,7 +13,7 @@ import logging
 import time
 from typing import Any
 
-from .ble import cooktop, extractor, identify, zone
+from .ble import cooktop, extractor, identify, oven, zone
 from .ble.transport import BrpcConnection, ConnectionLost, RpcError
 from .ble.wire import ProtocolError, Stream
 
@@ -52,6 +52,9 @@ def _unimplemented(err: RpcError, path: str, streams: tuple[Stream, ...]) -> boo
 class BoraBleDevice:
     """Keeps the latest decoded status of one appliance."""
 
+    kind = "cooktop"
+    streams: tuple[tuple[str, str, Callable[[bytes], dict]], ...] = STREAMS
+
     def __init__(
         self, connection: BrpcConnection, updated: Callable[[], None] | None = None
     ) -> None:
@@ -60,7 +63,7 @@ class BoraBleDevice:
         self._updated = updated
         self.information: dict[str, Any] = {}
         self.descriptor: dict[str, Any] = {}
-        self._state: dict[str, Any] = {"extractor": None, "cooktop": None, "zones": {}}
+        self._state: dict[str, Any] = self._initial_state()
         self._unsupported_streams: set[str] = set()
         self.use_streams = True
         self._subscribed_at: float | None = None
@@ -68,6 +71,9 @@ class BoraBleDevice:
         self._ready = False
         self._have_metadata = False
         self.connecting = False
+
+    def _initial_state(self) -> dict[str, Any]:
+        return {"extractor": None, "cooktop": None, "zones": {}}
 
     @property
     def connected(self) -> bool:
@@ -97,7 +103,7 @@ class BoraBleDevice:
             self.connecting = True
             try:
                 # A failed subscription closes the connection; reconnect without it.
-                for _attempt in range(len(STREAMS) + 2):
+                for _attempt in range(len(self.streams) + 2):
                     try:
                         await self.connection.connect(pair=pair)
                         await self._read_metadata()
@@ -161,7 +167,7 @@ class BoraBleDevice:
 
     async def _subscribe(self) -> bool:
         """Subscribe to all supported streams; False means reconnect and retry."""
-        for path, category, decoder in STREAMS:
+        for path, category, decoder in self.streams:
             if path in self._unsupported_streams or (category == "zones" and not self.zone_uids):
                 continue
             try:
@@ -254,3 +260,57 @@ class BoraBleDevice:
                 self._state["zones"].pop(uid, None)
         if not self.connected:
             raise ConnectionLost("Bluetooth disconnected during status read")
+
+
+class BoraOvenDevice(BoraBleDevice):
+    """A BORA oven (X BO): same transport, generic.* / bs_sys.* services."""
+
+    kind = "oven"
+    streams = ((oven.STREAM_PATH, "oven", oven.decode_status),)
+
+    def _initial_state(self) -> dict[str, Any]:
+        return {"oven": None, "full": None}
+
+    async def _read_metadata(self) -> None:
+        if self._have_metadata:
+            return
+        self.information = oven.decode_information(await self._rpc(*oven.get_information()))
+        self.descriptor = {}
+        self._have_metadata = True
+
+    async def _read_statuses(self) -> None:
+        def store(category: str, decoder: Callable[[bytes], dict]) -> Callable[[bytes], None]:
+            def received(body: bytes) -> None:
+                self._state[category] = decoder(body)
+
+            return received
+
+        await self._rpc(*oven.get_status(), received=store("oven", oven.decode_status))
+
+        path, body = oven.get_full_status()
+        if path not in self._unsupported_streams:
+            try:
+                await self._rpc(path, body, received=store("full", oven.decode_full_status))
+            except RpcError as err:
+                if not _unimplemented(err, path, (Stream.NONE,)):
+                    raise
+                self._unsupported_streams.add(path)
+                self._state["full"] = None
+            except (ConnectionLost, ProtocolError):
+                raise
+            except Exception as err:  # noqa: BLE001
+                # Programme progress is optional; keep the main status.
+                if not self.connected:
+                    raise
+                _LOGGER.debug("Reading oven programme progress failed: %r", err)
+        if not self.connected:
+            raise ConnectionLost("Bluetooth disconnected during status read")
+
+
+def create_device(
+    kind: str, connection: BrpcConnection, updated: Callable[[], None] | None = None
+) -> BoraBleDevice:
+    """Return the device class for a configured appliance kind."""
+    if kind == BoraOvenDevice.kind:
+        return BoraOvenDevice(connection, updated)
+    return BoraBleDevice(connection, updated)
