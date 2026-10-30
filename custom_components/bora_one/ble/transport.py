@@ -85,7 +85,7 @@ class Subscription:
 def _stale_gatt(err: BaseException) -> bool:
     """Return True for errors caused by a GATT table cached before it changed."""
     text = str(err).lower()
-    return "invalid handle" in text or "not found" in text
+    return any(m in text for m in ("invalid handle", "not found", "illegal parameter"))
 
 
 def _via_esphome(client: GattClient) -> bool:
@@ -578,6 +578,12 @@ class BrpcConnection:
             self._fail(ConnectionLost("Bluetooth connection closed"))
             self._decoder.reset()
             if client:
+                if _via_esphome(client):
+                    # The X BO numbers its GATT handles differently on every
+                    # connection; never let the next one use this table.
+                    with suppress(Exception):
+                        async with asyncio.timeout(self.disconnect_timeout):
+                            await _clear_gatt_cache(client)
                 with suppress(Exception):
                     async with asyncio.timeout(self.disconnect_timeout):
                         await client.disconnect()
