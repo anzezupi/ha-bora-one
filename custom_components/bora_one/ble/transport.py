@@ -207,6 +207,24 @@ class BrpcConnection:
                 raise
             return 0
 
+    async def _encrypt(self, client: GattClient) -> None:
+        """Encrypt a bonded link through an ESPHome proxy.
+
+        BlueZ encrypts with the stored keys when a protected characteristic is
+        accessed; an ESPHome proxy does not, and the X BO then refuses every
+        request ("Insufficient encryption"). With a stored bond, pairing again
+        only encrypts the link.
+        """
+        if not _via_esphome(client):
+            return
+        try:
+            async with asyncio.timeout(15):
+                await client.pair()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Encrypting the link through the ESPHome proxy failed: %r", err)
+        else:
+            _LOGGER.debug("Encrypted the link through the ESPHome proxy")
+
     async def _pair_and_wait(self, client: GattClient) -> int | None:
         """Request pairing and keep the link open until the user confirms on the cooktop.
 
@@ -333,6 +351,7 @@ class BrpcConnection:
                         raise PairingRequired("Bluetooth bonding did not complete")
                     self.bond_state = state
 
+                await self._encrypt(client)
                 if self._generation is not generation:
                     raise ConnectionLost("Connection closed during setup")
                 if notifying:

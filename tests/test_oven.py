@@ -23,6 +23,8 @@ from custom_components.bora_one.const import CONF_MODE, DOMAIN, MODE_BLUETOOTH
 from custom_components.bora_one.mapper import map_oven
 from custom_components.bora_one.models import OvenOperatingState, OvenProgram
 
+from custom_components.bora_one.ble.transport import BOND_UUID
+
 from .bora_peer import FakeBoraPeer
 from .conftest import ADDRESS, FakeBluetooth
 
@@ -283,5 +285,43 @@ async def test_stale_proxy_gatt_cache_is_cleared() -> None:
     await connection.connect()
     assert peer.cleared == 1
     assert connection.connected
+    assert oven.decode_information(await connection.rpc(*oven.get_information()))["fd"]
+    await connection.disconnect()
+
+
+class UnencryptedProxyPeer(FakeBoraPeer):
+    """An ESPHome proxy link: bonded, but not encrypted until pair() is called."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._backend = ESPHomeClient()
+        self.pair_calls = 0
+
+    async def read_gatt_char(self, uuid: str) -> bytearray:
+        if uuid == BOND_UUID:
+            return bytearray([1])  # the X BO reports the bond before encryption
+        return bytearray()
+
+    async def start_notify(self, uuid, callback) -> None:
+        await super().start_notify(uuid, callback)
+        self.encrypted = False  # an ESPHome proxy does not encrypt on its own
+
+    async def pair(self) -> None:
+        self.pair_calls += 1
+        self.encrypted = True
+
+    async def write_gatt_char(self, uuid: str, data: bytes, response: bool) -> None:
+        if not self.encrypted:
+            raise RuntimeError("Bluetooth GATT Error error=15 description=Insufficient encryption")
+        await super().write_gatt_char(uuid, data, response)
+
+
+async def test_esphome_link_is_encrypted() -> None:
+    """Through an ESPHome proxy, a bonded link is encrypted before the first request."""
+    peer = UnencryptedProxyPeer()
+    oven_peer(peer)
+    connection = peer.connection()
+    await connection.connect()
+    assert peer.pair_calls == 1
     assert oven.decode_information(await connection.rpc(*oven.get_information()))["fd"]
     await connection.disconnect()
