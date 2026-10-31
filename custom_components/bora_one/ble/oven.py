@@ -22,6 +22,7 @@ STATUS_SERVICE = "/generic.status.v1.DeviceStatusService/"
 OVEN_STATUS_SERVICE = "/bs_sys.generic.status.v1.StatusService/"
 
 STREAM_PATH = STATUS_SERVICE + "StreamDeviceStatusUpdates"
+CONTROL_SERVICE = "/generic.control.v1.GenericControlService/"
 
 # generic.identify.v1.Product.bs_product
 BS_PRODUCT_NAMES = {0: "unspecified", 1: "xbo", 2: "zbo"}
@@ -47,6 +48,11 @@ def get_information() -> tuple[str, bytes]:
 def get_status() -> tuple[str, bytes]:
     """Read the device status including the oven overview."""
     return STATUS_SERVICE + "GetDeviceStatus", b""
+
+
+def stop_current_function() -> tuple[str, bytes]:
+    """Stop the running programme (the app sends an empty request)."""
+    return CONTROL_SERVICE + "StopCurrentDeviceFunction", b""
 
 
 def get_full_status() -> tuple[str, bytes]:

@@ -281,6 +281,13 @@ class BoraOvenDevice(BoraBleDevice):
     def _initial_state(self) -> dict[str, Any]:
         return {"oven": None, "full": None}
 
+    async def stop_program(self) -> None:
+        """Stop the programme the oven is running."""
+        async with self._lock:
+            if not self.connected:
+                raise ConnectionLost("BORA is not connected")
+            await self._rpc(*oven.stop_current_function())
+
     async def _read_metadata(self) -> None:
         if self._have_metadata:
             return

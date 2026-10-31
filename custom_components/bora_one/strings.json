@@ -545,6 +545,11 @@
       "bluetooth_connection": {
         "name": "Allow Bluetooth connection"
       }
+    },
+    "button": {
+      "stop_program": {
+        "name": "Stop programme"
+      }
     }
   }
 }

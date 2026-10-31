@@ -230,6 +230,21 @@ async def test_oven_entities(
     assert _state(hass, f"sensor.{P}_target_temperature") == "unknown"
 
 
+async def test_stop_program_button(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """The stop button sends StopCurrentDeviceFunction with an empty request."""
+    oven_peer(peer, **RUNNING)
+    stop_path = oven.CONTROL_SERVICE + "StopCurrentDeviceFunction"
+    peer.status[stop_path] = b""
+    await _setup(hass)
+    button = f"button.{P}_stop_programme"
+    assert _state(hass, button) == "unknown"
+
+    await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
+    assert stop_path in peer.requests
+
+
 async def test_oven_switched_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

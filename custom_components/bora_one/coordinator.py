@@ -12,7 +12,7 @@ from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -30,7 +30,7 @@ from .const import (
     UPDATE_INTERVAL,
 )
 from .demo import DEMO_POSITIONS, demo_snapshot
-from .device import BoraBleDevice, create_device
+from .device import BoraBleDevice, BoraOvenDevice, create_device
 from .mapper import map_cooktop, map_oven, offline_cooktop
 from .models import AssistProgram, Cooktop, ExtractorMode, ZonePosition, ZoneState
 
@@ -375,6 +375,17 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self.config_entry.async_create_task(
                 self.hass, self.async_request_refresh(), "bora_one_connect"
             )
+
+    async def async_stop_oven_program(self) -> None:
+        """Stop the programme the oven is running."""
+        device = self.device
+        if not isinstance(device, BoraOvenDevice) or not device.connected:
+            raise HomeAssistantError("The oven is not connected")
+        try:
+            await device.stop_program()
+        except BoraError as err:
+            raise HomeAssistantError(f"The oven did not accept the stop command: {err}") from err
+        await self.async_request_refresh()
 
     async def async_set_connection_enabled(self, enabled: bool) -> None:
         """Hold or release the Bluetooth connection (lets the BORA One app connect)."""
