@@ -23,7 +23,6 @@ OVEN_STATUS_SERVICE = "/bs_sys.generic.status.v1.StatusService/"
 
 STREAM_PATH = STATUS_SERVICE + "StreamDeviceStatusUpdates"
 CONTROL_SERVICE = "/generic.control.v1.GenericControlService/"
-BS_CONTROL_SERVICE = "/bs_sys.generic.control.v1.BsControlService/"
 
 # generic.identify.v1.Product.bs_product
 BS_PRODUCT_NAMES = {0: "unspecified", 1: "xbo", 2: "zbo"}
