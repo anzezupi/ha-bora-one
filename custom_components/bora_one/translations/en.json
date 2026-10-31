@@ -63,6 +63,12 @@
       "filter_service": {
         "name": "Odour filter change"
       },
+      "door": {
+        "name": "Door"
+      },
+      "oven_filter_warning": {
+        "name": "Filter change"
+      },
       "front_left_active": {
         "name": "Front left active"
       },
@@ -157,6 +163,52 @@
       },
       "filter_lifetime": {
         "name": "Odour filter lifetime (raw)"
+      },
+      "oven_program": {
+        "name": "Programme",
+        "state": {
+          "none": "No programme",
+          "manual_cooking": "Manual cooking",
+          "automatic_cooking": "Automatic programme",
+          "special_program": "Special programme",
+          "cleaning": "Cleaning"
+        }
+      },
+      "oven_program_name": {
+        "name": "Programme name"
+      },
+      "oven_cooking_step": {
+        "name": "Cooking step"
+      },
+      "oven_temperature": {
+        "name": "Cooking chamber temperature"
+      },
+      "oven_target_temperature": {
+        "name": "Target temperature"
+      },
+      "oven_humidity": {
+        "name": "Cooking chamber humidity"
+      },
+      "oven_target_humidity": {
+        "name": "Target humidity"
+      },
+      "core_temperature": {
+        "name": "Core temperature"
+      },
+      "target_core_temperature": {
+        "name": "Target core temperature"
+      },
+      "step_end": {
+        "name": "Cooking step end"
+      },
+      "program_end": {
+        "name": "Programme end"
+      },
+      "program_progress": {
+        "name": "Programme progress"
+      },
+      "operating_hours": {
+        "name": "Operating hours"
       },
       "front_left_state": {
         "name": "Front left state",
@@ -487,11 +539,19 @@
       },
       "mid_front_assist_target_temperature": {
         "name": "Middle front Assist target temperature"
+      },
+      "egg_timer_end": {
+        "name": "Egg timer end"
       }
     },
     "switch": {
       "bluetooth_connection": {
         "name": "Allow Bluetooth connection"
+      }
+    },
+    "button": {
+      "stop_program": {
+        "name": "Stop programme"
       }
     }
   }

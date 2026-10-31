@@ -1,4 +1,4 @@
-"""Data models for BORA cooktops.
+"""Data models for BORA cooktops and ovens.
 
 These models are independent of Home Assistant. ``mapper.py`` builds them from
 the decoded Bluetooth status; ``demo.py`` builds them from a simulation.
@@ -141,9 +141,65 @@ class Extractor:
         return bool(self.fan_level)
 
 
+class OvenProgram(StrEnum):
+    """Kind of programme an oven runs."""
+
+    NONE = "none"
+    MANUAL_COOKING = "manual_cooking"
+    AUTOMATIC_COOKING = "automatic_cooking"
+    SPECIAL_PROGRAM = "special_program"
+    CLEANING = "cleaning"
+
+
+class OvenOperatingState(StrEnum):
+    """Operating state reported by an oven."""
+
+    UNSPECIFIED = "unspecified"
+    IDLE = "idle"
+    RUNNING = "running"
+    PAUSED = "paused"
+
+
+@dataclass(slots=True)
+class Oven:
+    """State of a BORA oven (X BO)."""
+
+    turned_on: bool = False
+    operating_state: OvenOperatingState = OvenOperatingState.UNSPECIFIED
+    program: OvenProgram = OvenProgram.NONE
+    program_name: str | None = None
+    cooking_step: str | None = None
+    current_temperature: int | None = None
+    """Cooking chamber temperature in degC (unit assumed)."""
+    target_temperature: int | None = None
+    current_humidity: int | None = None
+    """Cooking chamber humidity in % (unit assumed)."""
+    target_humidity: int | None = None
+    core_temperature: float | None = None
+    """Core temperature probe in degC, None when not reported."""
+    target_core_temperature: float | None = None
+    step_remaining: int | None = None
+    """Seconds left of the current cooking step (unit assumed)."""
+    program_remaining: int | None = None
+    """Seconds left of the whole programme (unit assumed)."""
+    program_progress: int | None = None
+    """Programme progress in %, from the optional full status."""
+    egg_timer_remaining: int | None = None
+    """Seconds left on the oven's egg timer (unit assumed)."""
+    door_open: bool | None = None
+    filter_warning: bool | None = None
+    filter_lifetime_raw: int | None = None
+    operating_hours: int | None = None
+
+    @property
+    def is_running(self) -> bool:
+        """Return True while a programme runs (paused counts as running)."""
+        return self.operating_state in (OvenOperatingState.RUNNING, OvenOperatingState.PAUSED)
+
+
 @dataclass(slots=True)
 class Cooktop:
-    """A BORA cooktop."""
+    """A BORA appliance: a cooktop, or an oven when ``oven`` is set."""
 
     appliance_id: str
     name: str
@@ -163,6 +219,7 @@ class Cooktop:
     errors: list[str] = field(default_factory=list)
     zones: dict[ZonePosition, CookingZone] = field(default_factory=dict)
     extractor: Extractor | None = None
+    oven: Oven | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
     """Decoded protocol data, exposed via diagnostics."""
 
@@ -173,7 +230,9 @@ class Cooktop:
 
     @property
     def is_cooking(self) -> bool:
-        """Return True when at least one zone is heating."""
+        """Return True when at least one zone is heating or the oven runs a programme."""
+        if self.oven is not None:
+            return self.oven.is_running
         return self.active_zone_count > 0
 
     @property

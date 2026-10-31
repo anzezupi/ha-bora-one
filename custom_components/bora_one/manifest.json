@@ -9,6 +9,15 @@
     {
       "local_name": "X PURE",
       "connectable": true
+    },
+    {
+      "local_name": "BORA X BO",
+      "connectable": true
+    },
+    {
+      "manufacturer_id": 2902,
+      "manufacturer_data_start": [88, 66, 79],
+      "connectable": true
     }
   ],
   "codeowners": ["@anzezupi"],
@@ -19,5 +28,5 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/anzezupi/ha-bora-one/issues",
   "requirements": [],
-  "version": "1.0.5"
+  "version": "1.0.6"
 }

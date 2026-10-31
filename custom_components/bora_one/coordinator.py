@@ -12,7 +12,7 @@ from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -30,8 +30,8 @@ from .const import (
     UPDATE_INTERVAL,
 )
 from .demo import DEMO_POSITIONS, demo_snapshot
-from .device import BoraBleDevice
-from .mapper import map_cooktop, offline_cooktop
+from .device import BoraBleDevice, BoraOvenDevice, create_device
+from .mapper import map_cooktop, map_oven, offline_cooktop
 from .models import AssistProgram, Cooktop, ExtractorMode, ZonePosition, ZoneState
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +39,9 @@ _LOGGER = logging.getLogger(__name__)
 CONF_ZONES = "zones"
 CONF_EXTRACTOR = "extractor"
 CONF_MODEL = "model"
+CONF_KIND = "kind"
+KIND_COOKTOP = "cooktop"
+KIND_OVEN = "oven"
 
 type BoraOneConfigEntry = ConfigEntry[BoraOneCoordinator]
 
@@ -90,6 +93,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             update_interval=DEMO_UPDATE_INTERVAL if self.demo else UPDATE_INTERVAL,
         )
         self.connection_enabled = True
+        self.kind: str = entry.data.get(CONF_KIND, KIND_COOKTOP)
         if self.demo:
             self.positions: tuple[ZonePosition, ...] = DEMO_POSITIONS
             self.has_extractor = True
@@ -114,7 +118,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self.address: str | None = entry.data.get(CONF_ADDRESS)
         self.device: BoraBleDevice | None = None
         if not self.demo:
-            self.device = BoraBleDevice(
+            self.device = create_device(
+                self.kind,
                 create_connection(hass, self.address, disconnected=self._on_disconnect),
                 updated=self._on_push,
             )
@@ -122,7 +127,14 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     # Data sources
 
     def _offline(self) -> Cooktop:
-        return offline_cooktop(self._identity, self.positions, self.has_extractor)
+        return offline_cooktop(
+            self._identity, self.positions, self.has_extractor, self.is_oven
+        )
+
+    @property
+    def is_oven(self) -> bool:
+        """Return True for an oven (X BO) entry."""
+        return self.kind == KIND_OVEN
 
     def _advertising(self) -> bool:
         return (
@@ -163,13 +175,21 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
     def _current(self) -> Cooktop:
         assert self.device is not None
         self._last_alive = time.monotonic()
-        cooktop = map_cooktop(
-            self._identity.appliance_id,
-            self._identity.name,
-            self.device.information,
-            self.device.descriptor,
-            self.device.state,
-        )
+        if self.is_oven:
+            cooktop = map_oven(
+                self._identity.appliance_id,
+                self._identity.name,
+                self.device.information,
+                self.device.state,
+            )
+        else:
+            cooktop = map_cooktop(
+                self._identity.appliance_id,
+                self._identity.name,
+                self.device.information,
+                self.device.descriptor,
+                self.device.state,
+            )
         for attr in ("model", "serial_number", "software_version", "hardware_version"):
             if value := getattr(cooktop, attr):
                 setattr(self._identity, attr, value)
@@ -295,7 +315,12 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             {p.value: (z.state.value, z.power_level) for p, z in new.zones.items()},
         )
         self._fire_events(new)
-        self.async_set_updated_data(new)
+        # Not async_set_updated_data(): that reschedules the periodic refresh,
+        # and with pushes every second the refresh (pause, locks, oven
+        # programme progress) would never run.
+        self.data = new
+        self.last_update_success = True
+        self.async_update_listeners()
 
     @callback
     def _on_disconnect(self) -> None:
@@ -350,6 +375,17 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self.config_entry.async_create_task(
                 self.hass, self.async_request_refresh(), "bora_one_connect"
             )
+
+    async def async_stop_oven_program(self) -> None:
+        """Stop the programme the oven is running."""
+        device = self.device
+        if not isinstance(device, BoraOvenDevice) or not device.connected:
+            raise HomeAssistantError("The oven is not connected")
+        try:
+            await device.stop_program()
+        except BoraError as err:
+            raise HomeAssistantError(f"The oven did not accept the stop command: {err}") from err
+        await self.async_request_refresh()
 
     async def async_set_connection_enabled(self, enabled: bool) -> None:
         """Hold or release the Bluetooth connection (lets the BORA One app connect)."""
