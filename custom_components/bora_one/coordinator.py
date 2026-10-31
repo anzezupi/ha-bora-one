@@ -315,7 +315,12 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             {p.value: (z.state.value, z.power_level) for p, z in new.zones.items()},
         )
         self._fire_events(new)
-        self.async_set_updated_data(new)
+        # Not async_set_updated_data(): that reschedules the periodic refresh,
+        # and with pushes every second the refresh (pause, locks, oven
+        # programme progress) would never run.
+        self.data = new
+        self.last_update_success = True
+        self.async_update_listeners()
 
     @callback
     def _on_disconnect(self) -> None:
