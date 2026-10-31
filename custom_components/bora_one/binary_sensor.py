@@ -120,6 +120,8 @@ COOKTOP_BINARY_SENSORS: tuple[BoraOneBinarySensorDescription, ...] = (
         translation_key="oven_filter_warning",
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
+        # X BO firmware 01.08 reports a warning while its own display says "good".
+        entity_registry_enabled_default=False,
         exists_fn=_is_oven,
         value_fn=lambda c: c.oven.filter_warning if c.oven else None,
     ),

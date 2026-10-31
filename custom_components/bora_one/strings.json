@@ -167,7 +167,7 @@
       "oven_program": {
         "name": "Programme",
         "state": {
-          "none": "None",
+          "none": "No programme",
           "manual_cooking": "Manual cooking",
           "automatic_cooking": "Automatic programme",
           "special_program": "Special programme",
