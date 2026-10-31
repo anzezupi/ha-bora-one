@@ -262,11 +262,21 @@ class BoraBleDevice:
             raise ConnectionLost("Bluetooth disconnected during status read")
 
 
+def _logged(name: str, decoder: Callable[[bytes], dict]) -> Callable[[bytes], dict]:
+    """Log the raw protobuf of oven messages so unknown fields can be mapped."""
+
+    def decode(body: bytes) -> dict:
+        _LOGGER.debug("Oven %s raw: %s", name, body.hex())
+        return decoder(body)
+
+    return decode
+
+
 class BoraOvenDevice(BoraBleDevice):
     """A BORA oven (X BO): same transport, generic.* / bs_sys.* services."""
 
     kind = "oven"
-    streams = ((oven.STREAM_PATH, "oven", oven.decode_status),)
+    streams = ((oven.STREAM_PATH, "oven", _logged("stream", oven.decode_status)),)
 
     def _initial_state(self) -> dict[str, Any]:
         return {"oven": None, "full": None}
@@ -285,12 +295,14 @@ class BoraOvenDevice(BoraBleDevice):
 
             return received
 
-        await self._rpc(*oven.get_status(), received=store("oven", oven.decode_status))
+        await self._rpc(*oven.get_status(), received=store("oven", _logged("status", oven.decode_status)))
 
         path, body = oven.get_full_status()
         if path not in self._unsupported_streams:
             try:
-                await self._rpc(path, body, received=store("full", oven.decode_full_status))
+                await self._rpc(
+                    path, body, received=store("full", _logged("full", oven.decode_full_status))
+                )
             except RpcError as err:
                 if not _unimplemented(err, path, (Stream.NONE,)):
                     raise
