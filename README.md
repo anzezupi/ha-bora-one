@@ -131,22 +131,35 @@ The BORA X BO steam oven speaks the same Bluetooth transport but a newer
 service family (`generic.*` / `bs_sys.*`). It advertises as `BORA X BO`
 without the BORA service UUID and is recognised by name and manufacturer
 data. Message layouts come from the BORA One Android app; units are assumed
-(°C, %, seconds) and can be checked in the diagnostics.
+(°C, %, seconds). Status updates arrive every second while connected.
+
+Tested with X BO firmware 01.08.009 through an ESPHome Bluetooth proxy
+(ESP32-C3). An ESPHome proxy needs the extra settings in
+[docs/esphome-proxy.md](docs/esphome-proxy.md) to reconnect without the
+oven's pairing mode.
 
 | Entity | Type | Notes |
 |---|---|---|
 | Status | sensor (enum) | off, standby, cooking, paused, error |
-| Programme | sensor (enum) | none, manual_cooking, automatic_cooking, special_program, cleaning |
-| Programme name, Cooking step | sensor | as reported by the oven |
+| Programme | sensor (enum) | no programme, manual cooking, automatic cooking, special program, cleaning |
+| Programme name, Cooking step | sensor | as reported by the oven (e.g. `CombiSteam` for convection) |
 | Cooking chamber temperature / Target temperature | sensor (°C) | |
-| Cooking chamber humidity / Target humidity | sensor (%) | |
+| Cooking chamber humidity / Target humidity | sensor (%) | unknown for modes without humidity |
 | Core temperature / Target core temperature | sensor (°C) | core temperature probe |
-| Cooking step end, Programme end | sensor (timestamp) | |
-| Programme progress | sensor (%) | if the oven answers the full status |
+| Cooking step end, Programme end | sensor (timestamp) | only with a timer |
+| Egg timer end | sensor (timestamp) | egg timer set on the oven, if the firmware streams it |
+| Programme progress | sensor (%) | read every 30 s while running |
 | Operating hours | sensor (h) | diagnostic |
-| Door | binary sensor (door) | |
+| Door | binary sensor (door) | firmware 01.08.009 never sends it: stays unknown |
 | Cooking, Paused, Child lock | binary sensor | |
-| Filter change | binary sensor (problem) | diagnostic |
+| Filter change, Odour filter lifetime | binary sensor / sensor | disabled by default: 01.08.009 reports a warning while the oven itself shows "good" |
+| Stop programme | button | stops the running programme, like StopCurrentDeviceFunction in the app |
+
+The oven only accepts the stop command. Starting programmes, presets,
+favourites or `StartDevice` (`bs_sys.generic.control.v1.BsControlService`)
+are answered with NOT_FOUND on firmware 01.08.009, and there is no command
+for the light, for switching off or for acknowledging the end-of-programme
+signal.
 
 ## Events
 
