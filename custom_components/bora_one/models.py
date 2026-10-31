@@ -184,6 +184,8 @@ class Oven:
     """Seconds left of the whole programme (unit assumed)."""
     program_progress: int | None = None
     """Programme progress in %, from the optional full status."""
+    egg_timer_remaining: int | None = None
+    """Seconds left on the oven's egg timer (unit assumed)."""
     door_open: bool | None = None
     filter_warning: bool | None = None
     filter_lifetime_raw: int | None = None

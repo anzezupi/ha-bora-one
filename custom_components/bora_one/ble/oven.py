@@ -23,6 +23,8 @@ OVEN_STATUS_SERVICE = "/bs_sys.generic.status.v1.StatusService/"
 
 STREAM_PATH = STATUS_SERVICE + "StreamDeviceStatusUpdates"
 CONTROL_SERVICE = "/generic.control.v1.GenericControlService/"
+# Streams the egg timer set on the oven; the request carries no duration.
+EGG_TIMER_STREAM = "/bs_sys.generic.timer.v1.TimerService/StartEggTimerStream"
 
 # generic.identify.v1.Product.bs_product
 BS_PRODUCT_NAMES = {0: "unspecified", 1: "xbo", 2: "zbo"}
@@ -164,6 +166,12 @@ def decode_status(body: bytes) -> dict[str, Any]:
         if oven_status.has(1):
             result["overview"] = decode_overview(oven_status.bytes(1))
     return result
+
+
+def decode_egg_timer(body: bytes) -> dict[str, Any]:
+    """Decode bs_sys.generic.timer.v1.EggTimerResponse."""
+    message = Message(body)
+    return {"remaining": message.uint(1) if message.has(1) else None}
 
 
 def decode_full_status(body: bytes) -> dict[str, Any]:

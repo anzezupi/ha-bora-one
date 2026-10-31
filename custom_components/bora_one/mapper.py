@@ -273,6 +273,7 @@ def map_oven(
     """Build the appliance model of a connected oven."""
     status = state.get("oven") or {}
     oven = map_oven_state(status, state.get("full"))
+    oven.egg_timer_remaining = _positive((state.get("egg_timer") or {}).get("remaining"))
     product = information.get("product_name")
     return Cooktop(
         appliance_id=appliance_id,

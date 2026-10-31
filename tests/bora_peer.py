@@ -118,6 +118,8 @@ class FakeBoraPeer:
         # Accepts the link but refuses every write (GATT error 14, seen after switch-on).
         self.refuse_writes = False
         self.requests: list[str] = []
+        self.extra_streams: set[str] = set()
+        """Stream paths whose method name does not start with Stream."""
         self.status: dict[str, bytes] = {
             EXTRACTOR + "GetExtractorStatus": EXTRACTOR_LEVEL_3,
             COOKTOP + "GetCooktopStatus": COOKTOP_STATUS,
@@ -211,7 +213,7 @@ class FakeBoraPeer:
             return
         if request.uint(6) == wire.Stream.STOP:
             self._reply(request_id, stream=wire.Stream.STOP)
-        elif path.split("/")[-1].startswith("Stream"):
+        elif path.split("/")[-1].startswith("Stream") or path in self.extra_streams:
             self.subscriptions[path] = request_id
             self._reply(request_id, stream=wire.Stream.START)
             if self.stream_drop_delay is not None:

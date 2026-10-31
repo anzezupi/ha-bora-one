@@ -539,6 +539,9 @@
       },
       "mid_front_assist_target_temperature": {
         "name": "Middle front Assist target temperature"
+      },
+      "egg_timer_end": {
+        "name": "Egg timer end"
       }
     },
     "switch": {

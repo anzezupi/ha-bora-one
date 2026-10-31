@@ -220,7 +220,7 @@ async def test_oven_entities(
     assert not any("extractor" in entity_id for entity_id in ids)
 
     # Oven paths only; the programme progress read is optional (here: UNIMPLEMENTED).
-    assert set(peer.requests) <= {IDENTIFY, STATUS, FULL, oven.STREAM_PATH}
+    assert set(peer.requests) <= {IDENTIFY, STATUS, FULL, oven.STREAM_PATH, oven.EGG_TIMER_STREAM}
 
     # A status stream update is applied.
     peer.push(oven.STREAM_PATH, device_status(turned_on=True, state=1, door_closed=False))
@@ -243,6 +243,25 @@ async def test_stop_program_button(
 
     await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
     assert stop_path in peer.requests
+
+
+async def test_egg_timer(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """An egg timer set on the oven shows as an end time."""
+    oven_peer(peer, **RUNNING)
+    peer.extra_streams.add(oven.EGG_TIMER_STREAM)
+    await _setup(hass)
+    sensor = f"sensor.{P}_egg_timer_end"
+    assert _state(hass, sensor) == "unknown"
+
+    peer.push(oven.EGG_TIMER_STREAM, wire.uint(1, 300))
+    await hass.async_block_till_done()
+    assert _state(hass, sensor) not in ("unknown", "unavailable")
+
+    peer.push(oven.EGG_TIMER_STREAM, b"")
+    await hass.async_block_till_done()
+    assert _state(hass, sensor) == "unknown"
 
 
 async def test_oven_switched_off(

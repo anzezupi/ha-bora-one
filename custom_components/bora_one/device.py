@@ -19,6 +19,7 @@ from .ble.wire import ProtocolError, Stream
 
 _LOGGER = logging.getLogger(__name__)
 
+NOT_FOUND = 5
 UNIMPLEMENTED = 12
 UNAVAILABLE = 14
 
@@ -42,7 +43,7 @@ REQUEST_GAP = 0.3
 def _unimplemented(err: RpcError, path: str, streams: tuple[Stream, ...]) -> bool:
     """Return True when the appliance rejected exactly this request as unsupported."""
     return (
-        err.code == UNIMPLEMENTED
+        err.code in (UNIMPLEMENTED, NOT_FOUND)
         and err.path == path
         and err.request_id is not None
         and err.stream in streams
@@ -276,10 +277,14 @@ class BoraOvenDevice(BoraBleDevice):
     """A BORA oven (X BO): same transport, generic.* / bs_sys.* services."""
 
     kind = "oven"
-    streams = ((oven.STREAM_PATH, "oven", _logged("stream", oven.decode_status)),)
+    streams = (
+        (oven.STREAM_PATH, "oven", _logged("stream", oven.decode_status)),
+        # Optional: firmware without it answers NOT_FOUND and is skipped.
+        (oven.EGG_TIMER_STREAM, "egg_timer", _logged("egg timer", oven.decode_egg_timer)),
+    )
 
     def _initial_state(self) -> dict[str, Any]:
-        return {"oven": None, "full": None}
+        return {"oven": None, "full": None, "egg_timer": None}
 
     async def stop_program(self) -> None:
         """Stop the programme the oven is running."""

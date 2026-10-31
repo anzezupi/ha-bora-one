@@ -237,6 +237,14 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         value_fn=_oven("program_remaining"),
     ),
     BoraOneSensorDescription(
+        key="egg_timer_end",
+        translation_key="egg_timer_end",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        remaining_time=True,
+        exists_fn=_is_oven,
+        value_fn=_oven("egg_timer_remaining"),
+    ),
+    BoraOneSensorDescription(
         key="program_progress",
         translation_key="program_progress",
         native_unit_of_measurement=PERCENTAGE,
