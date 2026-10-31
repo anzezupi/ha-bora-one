@@ -222,6 +222,9 @@ def _program_name(name: str | None) -> str | None:
     """Return the running programme's name; the oven reports a placeholder when idle."""
     if not name or name.upper() == "NO_PROGRAM_IS_RUNNING":
         return None
+    if name.isupper() and " " not in name:
+        # Built-in kinds come as identifiers (CLASSIC_PROGRAM); user favourites as text.
+        return name.replace("_", " ").capitalize()
     return name
 
 

@@ -128,8 +128,9 @@ def decode_overview(body: bytes) -> dict[str, Any]:
         "cooking_step": message.text(4),
         "target_temperature": message.int32(5),
         "current_temperature": message.int32(6),
-        "target_humidity": message.uint(7),
-        "current_humidity": message.uint(8),
+        # Optional fields: absent means the mode has no humidity, not 0 %.
+        "target_humidity": message.uint(7) if message.has(7) else None,
+        "current_humidity": message.uint(8) if message.has(8) else None,
         "step_remaining": message.int32(9),
         "xbo": _optional(message, 10, _xbo_overview),
         "has_hz": message.has(11),
