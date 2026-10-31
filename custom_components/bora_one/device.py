@@ -7,6 +7,7 @@ status subscriptions. No setter RPC is ever sent.
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from collections.abc import Callable
 from copy import deepcopy
 import logging
@@ -287,6 +288,40 @@ class BoraOvenDevice(BoraBleDevice):
             if not self.connected:
                 raise ConnectionLost("BORA is not connected")
             await self._rpc(*oven.stop_current_function())
+
+    async def experiment(self, command: str) -> None:
+        """Probe an undocumented control command and log what the oven answers.
+
+        Start commands are always followed by a stop after one second, so a
+        programme that does start never keeps running.
+        """
+        async with self._lock:
+            if not self.connected:
+                raise ConnectionLost("BORA is not connected")
+            if command == "start_device":
+                body = await self._rpc(oven.BS_CONTROL_SERVICE + "StartDevice", b"")
+                _LOGGER.warning("BORA experiment StartDevice answered: %s", body.hex())
+                return
+            method = {"start_preset": "StartPresetStream", "start_favorite": "StartFavoriteStream"}[
+                command
+            ]
+            path = oven.BS_CONTROL_SERVICE + method
+
+            def received(body: bytes) -> None:
+                _LOGGER.warning("BORA experiment %s update: %s", method, body.hex())
+
+            subscription = None
+            try:
+                subscription = await self.connection.subscribe(path, received)
+                _LOGGER.warning("BORA experiment %s was accepted", method)
+                await asyncio.sleep(1)
+            finally:
+                if self.connected:
+                    with suppress(Exception):
+                        await self._rpc(*oven.stop_current_function())
+                    if subscription is not None:
+                        with suppress(Exception):
+                            await self.connection.unsubscribe(subscription)
 
     async def _read_metadata(self) -> None:
         if self._have_metadata:

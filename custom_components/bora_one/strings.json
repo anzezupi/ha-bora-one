@@ -551,5 +551,17 @@
         "name": "Stop programme"
       }
     }
+  },
+  "services": {
+    "oven_experiment": {
+      "name": "Oven experiment",
+      "description": "Send an undocumented control command to the X BO and log the answer. Start commands are stopped again after one second.",
+      "fields": {
+        "command": {
+          "name": "Command",
+          "description": "start_device, start_preset or start_favorite"
+        }
+      }
+    }
   }
 }

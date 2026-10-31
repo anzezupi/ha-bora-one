@@ -10,11 +10,13 @@ from __future__ import annotations
 import struct
 from types import SimpleNamespace
 
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.bora_one.ble import oven, wire
@@ -243,6 +245,27 @@ async def test_stop_program_button(
 
     await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
     assert stop_path in peer.requests
+
+
+async def test_oven_experiment_service(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """The experiment service sends StartDevice and reports refusals as errors."""
+    oven_peer(peer, **RUNNING)
+    start_path = oven.BS_CONTROL_SERVICE + "StartDevice"
+    peer.status[start_path] = b""
+    await _setup(hass)
+
+    await hass.services.async_call(
+        "bora_one", "oven_experiment", {"command": "start_device"}, blocking=True
+    )
+    assert start_path in peer.requests
+
+    del peer.status[start_path]
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            "bora_one", "oven_experiment", {"command": "start_device"}, blocking=True
+        )
 
 
 async def test_oven_switched_off(

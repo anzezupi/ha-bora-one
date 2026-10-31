@@ -1,0 +1,10 @@
+oven_experiment:
+  fields:
+    command:
+      required: true
+      selector:
+        select:
+          options:
+            - start_device
+            - start_preset
+            - start_favorite

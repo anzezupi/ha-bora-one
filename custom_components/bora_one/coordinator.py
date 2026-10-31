@@ -387,6 +387,18 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             raise HomeAssistantError(f"The oven did not accept the stop command: {err}") from err
         await self.async_request_refresh()
 
+    async def async_oven_experiment(self, command: str) -> None:
+        """Send an experimental oven command (see services.yaml)."""
+        device = self.device
+        if not isinstance(device, BoraOvenDevice) or not device.connected:
+            raise HomeAssistantError("The oven is not connected")
+        try:
+            await device.experiment(command)
+        except BoraError as err:
+            raise HomeAssistantError(f"The oven answered {command} with: {err!r}") from err
+        finally:
+            await self.async_request_refresh()
+
     async def async_set_connection_enabled(self, enabled: bool) -> None:
         """Hold or release the Bluetooth connection (lets the BORA One app connect)."""
         self.connection_enabled = enabled
