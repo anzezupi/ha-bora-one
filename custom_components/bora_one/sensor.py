@@ -70,10 +70,25 @@ class BoraOneZoneSensorDescription(SensorEntityDescription):
     remaining_time: bool = False
 
 
+# Shown by text sensors whose value does not apply right now (no programme,
+# no timer), so they do not read "unknown" as if a reading were missing.
+NOT_ACTIVE = "—"
+NO_COUNTDOWN = "--:--"
+
+
+def _text(attribute: str) -> Callable[[Cooktop], Any]:
+    def value(cooktop: Cooktop) -> Any:
+        if cooktop.oven is None:
+            return None
+        return getattr(cooktop.oven, attribute) or NOT_ACTIVE
+
+    return value
+
+
 def _countdown(seconds: int | None) -> str | None:
     """Format a remaining time as mm:ss (h:mm:ss from one hour)."""
     if seconds is None:
-        return None
+        return NO_COUNTDOWN
     minutes, secs = divmod(int(seconds), 60)
     hours, minutes = divmod(minutes, 60)
     return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes:02d}:{secs:02d}"
@@ -170,13 +185,13 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         key="oven_program_name",
         translation_key="oven_program_name",
         exists_fn=_is_oven,
-        value_fn=_oven("program_name"),
+        value_fn=_text("program_name"),
     ),
     BoraOneSensorDescription(
         key="oven_cooking_step",
         translation_key="oven_cooking_step",
         exists_fn=_is_oven,
-        value_fn=_oven("cooking_step"),
+        value_fn=_text("cooking_step"),
     ),
     BoraOneSensorDescription(
         key="oven_temperature",
