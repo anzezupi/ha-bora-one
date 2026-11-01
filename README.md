@@ -153,12 +153,14 @@ oven's pairing mode.
 | Core temperature / Target core temperature | sensor (°C) | core temperature probe |
 | Cooking step end, Programme end | sensor (timestamp) | only with a timer |
 | Egg timer end | sensor (timestamp) | egg timer set on the oven, if the firmware streams it |
+| Cooking step remaining, Programme remaining, Egg timer remaining | sensor | countdown as mm:ss (h:mm:ss from one hour) |
 | Programme progress | sensor (%) | read every 30 s while running |
 | Operating hours | sensor (h) | diagnostic |
 | Door | binary sensor (door) | firmware 01.08.009 never sends it: stays unknown |
 | Cooking, Paused, Child lock | binary sensor | |
 | Filter change, Odour filter lifetime | binary sensor / sensor | disabled by default: 01.08.009 reports a warning while the oven itself shows "good" |
 | Stop programme | button | stops the running programme, like StopCurrentDeviceFunction in the app |
+| Stop before end signal | switch (config, off by default) | stops a programme 2 s before its end: the oven then finishes without the end signal that rings until its screen is touched |
 
 The oven only accepts the stop command. Starting programmes, presets,
 favourites or `StartDevice` (`bs_sys.generic.control.v1.BsControlService`)

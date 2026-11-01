@@ -34,6 +34,9 @@ from .device import BoraBleDevice, BoraOvenDevice, create_device
 from .mapper import map_cooktop, map_oven, offline_cooktop
 from .models import AssistProgram, Cooktop, ExtractorMode, ZonePosition, ZoneState
 
+# Seconds before the end at which "stop before end signal" stops the programme.
+END_STOP_SECONDS = 2
+
 _LOGGER = logging.getLogger(__name__)
 
 CONF_ZONES = "zones"
@@ -107,6 +110,9 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         self._demo_start = time.monotonic()
         self._closed = False
+        self.stop_before_end_signal = False
+        """Stop an oven programme just before it ends, so the end signal does not ring."""
+        self._end_stop_sent = False
         self._pairing_lost = False
         self._pairing_failures = 0
         self._first_pairing_failure = 0.0
@@ -315,6 +321,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             {p.value: (z.state.value, z.power_level) for p, z in new.zones.items()},
         )
         self._fire_events(new)
+        self._maybe_stop_before_end(new)
         # Not async_set_updated_data(): that reschedules the periodic refresh,
         # and with pushes every second the refresh (pause, locks, oven
         # programme progress) would never run.
@@ -375,6 +382,34 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self.config_entry.async_create_task(
                 self.hass, self.async_request_refresh(), "bora_one_connect"
             )
+
+    @callback
+    def _maybe_stop_before_end(self, cooktop: Cooktop) -> None:
+        oven = cooktop.oven
+        if oven is None or not oven.is_running:
+            self._end_stop_sent = False
+            return
+        remaining = (
+            oven.program_remaining if oven.program_remaining is not None else oven.step_remaining
+        )
+        if (
+            not self.stop_before_end_signal
+            or self._end_stop_sent
+            or remaining is None
+            or remaining > END_STOP_SECONDS
+        ):
+            return
+        self._end_stop_sent = True
+        _LOGGER.info("Stopping the oven programme %s s before its end", remaining)
+        self.config_entry.async_create_task(
+            self.hass, self._stop_quietly(), "bora_one_stop_before_end"
+        )
+
+    async def _stop_quietly(self) -> None:
+        try:
+            await self.async_stop_oven_program()
+        except HomeAssistantError as err:
+            _LOGGER.warning("Stopping the oven before its end signal failed: %s", err)
 
     async def async_stop_oven_program(self) -> None:
         """Stop the programme the oven is running."""

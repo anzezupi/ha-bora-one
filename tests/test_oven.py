@@ -264,6 +264,38 @@ async def test_egg_timer(
     assert _state(hass, sensor) == "unknown"
 
 
+async def test_countdown_and_stop_before_end(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """Remaining times show as mm:ss; the switch stops the programme just before its end."""
+    oven_peer(peer, **RUNNING)
+    stop_path = oven.CONTROL_SERVICE + "StopCurrentDeviceFunction"
+    peer.status[stop_path] = b""
+    await _setup(hass)
+    assert _state(hass, f"sensor.{P}_cooking_step_remaining") == "10:00"
+    assert _state(hass, f"sensor.{P}_programme_remaining") == "25:00"
+
+    # Switch off: nothing is stopped at the end.
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 1}))
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_programme_remaining") == "00:01"
+    assert stop_path not in peer.requests
+
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": f"switch.{P}_stop_before_end_signal"}, blocking=True
+    )
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 3}))
+    await hass.async_block_till_done()
+    assert stop_path not in peer.requests
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 2}))
+    await hass.async_block_till_done()
+    assert peer.requests.count(stop_path) == 1
+    # Only once per programme.
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 1}))
+    await hass.async_block_till_done()
+    assert peer.requests.count(stop_path) == 1
+
+
 async def test_oven_switched_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

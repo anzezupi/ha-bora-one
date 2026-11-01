@@ -70,6 +70,15 @@ class BoraOneZoneSensorDescription(SensorEntityDescription):
     remaining_time: bool = False
 
 
+def _countdown(seconds: int | None) -> str | None:
+    """Format a remaining time as mm:ss (h:mm:ss from one hour)."""
+    if seconds is None:
+        return None
+    minutes, secs = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes:02d}:{secs:02d}"
+
+
 def _has_extractor(coordinator: BoraOneCoordinator) -> bool:
     return coordinator.has_extractor
 
@@ -235,6 +244,24 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         remaining_time=True,
         exists_fn=_is_oven,
         value_fn=_oven("program_remaining"),
+    ),
+    BoraOneSensorDescription(
+        key="step_remaining",
+        translation_key="step_remaining",
+        exists_fn=_is_oven,
+        value_fn=lambda c: _countdown(c.oven.step_remaining) if c.oven else None,
+    ),
+    BoraOneSensorDescription(
+        key="program_remaining",
+        translation_key="program_remaining",
+        exists_fn=_is_oven,
+        value_fn=lambda c: _countdown(c.oven.program_remaining) if c.oven else None,
+    ),
+    BoraOneSensorDescription(
+        key="egg_timer_remaining",
+        translation_key="egg_timer_remaining",
+        exists_fn=_is_oven,
+        value_fn=lambda c: _countdown(c.oven.egg_timer_remaining) if c.oven else None,
     ),
     BoraOneSensorDescription(
         key="egg_timer_end",
