@@ -227,7 +227,9 @@ async def test_oven_entities(
     await hass.async_block_till_done()
     assert _state(hass, f"sensor.{P}_status") == "standby"
     assert _state(hass, f"binary_sensor.{P}_door") == "unknown"
-    assert _state(hass, f"sensor.{P}_target_temperature") == "unknown"
+    assert _state(hass, f"sensor.{P}_target_temperature") == "0"
+    assert _state(hass, f"sensor.{P}_programme_name") == "—"
+    assert _state(hass, f"sensor.{P}_programme_remaining") == "--:--"
 
 
 async def test_stop_program_button(

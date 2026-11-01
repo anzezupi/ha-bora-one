@@ -111,6 +111,18 @@ def _oven(attr: str) -> Callable[[Cooktop], Any]:
     return lambda c: getattr(c.oven, attr) if c.oven else None
 
 
+def _oven_or_zero(attr: str) -> Callable[[Cooktop], Any]:
+    """Like _oven, but 0 instead of unknown when the value does not apply right now."""
+
+    def value(cooktop: Cooktop) -> Any:
+        if cooktop.oven is None or not cooktop.online:
+            return None
+        reading = getattr(cooktop.oven, attr)
+        return 0 if reading is None else reading
+
+    return value
+
+
 COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
     BoraOneSensorDescription(
         key="status",
@@ -208,7 +220,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         exists_fn=_is_oven,
-        value_fn=_oven("target_temperature"),
+        value_fn=_oven_or_zero("target_temperature"),
     ),
     BoraOneSensorDescription(
         key="oven_humidity",
@@ -217,7 +229,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         exists_fn=_is_oven,
-        value_fn=_oven("current_humidity"),
+        value_fn=_oven_or_zero("current_humidity"),
     ),
     BoraOneSensorDescription(
         key="oven_target_humidity",
@@ -225,7 +237,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         device_class=SensorDeviceClass.HUMIDITY,
         native_unit_of_measurement=PERCENTAGE,
         exists_fn=_is_oven,
-        value_fn=_oven("target_humidity"),
+        value_fn=_oven_or_zero("target_humidity"),
     ),
     BoraOneSensorDescription(
         key="core_temperature",
@@ -291,7 +303,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         translation_key="program_progress",
         native_unit_of_measurement=PERCENTAGE,
         exists_fn=_is_oven,
-        value_fn=_oven("program_progress"),
+        value_fn=_oven_or_zero("program_progress"),
     ),
     BoraOneSensorDescription(
         key="operating_hours",
