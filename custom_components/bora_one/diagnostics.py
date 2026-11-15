@@ -19,6 +19,8 @@ TO_REDACT = {
     "cm_identifier",
     "fd",
     "e_nr",
+    "hmi_fd_nr",
+    "io_fd_nr",
     "ssid",
     "mac_address",
 }

@@ -9,7 +9,12 @@ from homeassistant.core import HomeAssistant, callback
 from .const import CONF_MODE, MODE_DEMO
 from .coordinator import BoraOneConfigEntry, BoraOneCoordinator
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: BoraOneConfigEntry) -> bool:

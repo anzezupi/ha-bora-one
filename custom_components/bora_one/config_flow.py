@@ -19,8 +19,15 @@ from .agent import pairing_agent
 from .ble.transport import BoraError, PairingRequired
 from .ble.wire import ProtocolError
 from .const import CONF_MODE, DATA_PAIRING, DOMAIN, MODE_BLUETOOTH, MODE_DEMO, SERVICE_UUID
-from .coordinator import CONF_EXTRACTOR, CONF_MODEL, CONF_ZONES
-from .device import BoraBleDevice
+from .coordinator import (
+    CONF_EXTRACTOR,
+    CONF_KIND,
+    CONF_MODEL,
+    CONF_ZONES,
+    KIND_COOKTOP,
+    KIND_OVEN,
+)
+from .device import create_device
 from .mapper import PRODUCT_MODELS, zone_positions
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,14 +40,41 @@ class PairingInProgress(Exception):
     """Another pairing with this cooktop is already running."""
 
 
+BORA_MANUFACTURER_ID = 0x0B56
+"""Company ID in the manufacturer data of BORA ovens (X BO)."""
+OVEN_PRODUCTS = (b"XBO", b"ZBO")
+"""Product codes at the start of an oven's manufacturer data."""
+
+
+def is_oven(info: bluetooth.BluetoothServiceInfoBleak) -> bool:
+    """Return True for a BORA oven advertisement (X BO).
+
+    An X BO advertises "BORA X BO" and manufacturer data starting with its
+    product code, but not the BORA service UUID.
+    """
+    data = (getattr(info, "manufacturer_data", None) or {}).get(BORA_MANUFACTURER_ID, b"")
+    name = getattr(info, "name", None) or ""
+    return bytes(data).startswith(OVEN_PRODUCTS) or name.upper() == "BORA X BO"
+
+
 def is_bora(info: bluetooth.BluetoothServiceInfoBleak) -> bool:
     """Return True for a BORA appliance advertisement."""
-    return SERVICE_UUID in {uuid.lower() for uuid in info.service_uuids} or (
-        info.name or ""
-    ).upper() in {"X PURE", "PURE", "S PURE", "M PURE"}
+    return (
+        SERVICE_UUID in {uuid.lower() for uuid in info.service_uuids}
+        or (info.name or "").upper() in {"X PURE", "PURE", "S PURE", "M PURE"}
+        or is_oven(info)
+    )
 
 
-async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
+def _detect_kind(hass, address: str) -> str:
+    """Tell an oven from a cooktop by its last advertisement."""
+    info = bluetooth.async_last_service_info(hass, address, connectable=True)
+    return KIND_OVEN if info is not None and is_oven(info) else KIND_COOKTOP
+
+
+async def async_pair_and_probe(
+    hass, address: str, kind: str | None = None
+) -> dict[str, Any]:
     """Pair (if needed), read the appliance description and disconnect again."""
     pairing: set[str] = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_PAIRING, set())
     if address in pairing:
@@ -51,11 +85,19 @@ async def async_pair_and_probe(hass, address: str) -> dict[str, Any]:
         coordinator = getattr(entry, "runtime_data", None)
         if entry.data.get(CONF_ADDRESS) == address and getattr(coordinator, "device", None):
             await coordinator.device.disconnect()
-    device = BoraBleDevice(create_connection(hass, address))
+    kind = kind or _detect_kind(hass, address)
+    device = create_device(kind, create_connection(hass, address))
     try:
         async with pairing_agent(address), asyncio.timeout(PAIRING_TIMEOUT):
             await device.connect(pair=True, subscribe=False, read_status=False)
         product = device.information.get("product_name")
+        if kind == KIND_OVEN:
+            return {
+                CONF_KIND: KIND_OVEN,
+                CONF_ZONES: [],
+                CONF_EXTRACTOR: False,
+                CONF_MODEL: PRODUCT_MODELS.get(product, product) if product else None,
+            }
         return {
             CONF_ZONES: [p.value for p in zone_positions(device.descriptor).values()],
             CONF_EXTRACTOR: bool(device.descriptor.get("extractor_descriptor")),
@@ -135,7 +177,12 @@ class BoraOneConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             assert self._address is not None
             try:
-                details = await async_pair_and_probe(self.hass, self._address)
+                kind = (
+                    self._get_reauth_entry().data.get(CONF_KIND)
+                    if self.source == SOURCE_REAUTH
+                    else None
+                )
+                details = await async_pair_and_probe(self.hass, self._address, kind)
             except PairingInProgress:
                 errors["base"] = "pairing_in_progress"
             except PairingRequired as err:

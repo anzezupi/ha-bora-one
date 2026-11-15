@@ -13,7 +13,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfTemperature, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -26,6 +26,7 @@ from .models import (
     CookingZone,
     ExtractorMode,
     KeepWarmMode,
+    OvenProgram,
     ZonePosition,
     ZoneState,
 )
@@ -73,6 +74,19 @@ def _has_extractor(coordinator: BoraOneCoordinator) -> bool:
     return coordinator.has_extractor
 
 
+def _is_cooktop(coordinator: BoraOneCoordinator) -> bool:
+    return not coordinator.is_oven
+
+
+def _is_oven(coordinator: BoraOneCoordinator) -> bool:
+    return coordinator.is_oven
+
+
+def _oven(attr: str) -> Callable[[Cooktop], Any]:
+    """Return a value function reading one Oven attribute."""
+    return lambda c: getattr(c.oven, attr) if c.oven else None
+
+
 COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
     BoraOneSensorDescription(
         key="status",
@@ -85,6 +99,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         key="active_zones",
         translation_key="active_zones",
         state_class=SensorStateClass.MEASUREMENT,
+        exists_fn=_is_cooktop,
         value_fn=lambda c: c.active_zone_count,
     ),
     BoraOneSensorDescription(
@@ -132,6 +147,127 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         exists_fn=_has_extractor,
         value_fn=lambda c: c.extractor.filter_lifetime_raw if c.extractor else None,
+    ),
+    # Oven (X BO)
+    BoraOneSensorDescription(
+        key="oven_program",
+        translation_key="oven_program",
+        device_class=SensorDeviceClass.ENUM,
+        options=[p.value for p in OvenProgram],
+        exists_fn=_is_oven,
+        value_fn=lambda c: c.oven.program.value if c.oven else None,
+    ),
+    BoraOneSensorDescription(
+        key="oven_program_name",
+        translation_key="oven_program_name",
+        exists_fn=_is_oven,
+        value_fn=_oven("program_name"),
+    ),
+    BoraOneSensorDescription(
+        key="oven_cooking_step",
+        translation_key="oven_cooking_step",
+        exists_fn=_is_oven,
+        value_fn=_oven("cooking_step"),
+    ),
+    BoraOneSensorDescription(
+        key="oven_temperature",
+        translation_key="oven_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        exists_fn=_is_oven,
+        value_fn=_oven("current_temperature"),
+    ),
+    BoraOneSensorDescription(
+        key="oven_target_temperature",
+        translation_key="oven_target_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        exists_fn=_is_oven,
+        value_fn=_oven("target_temperature"),
+    ),
+    BoraOneSensorDescription(
+        key="oven_humidity",
+        translation_key="oven_humidity",
+        device_class=SensorDeviceClass.HUMIDITY,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        exists_fn=_is_oven,
+        value_fn=_oven("current_humidity"),
+    ),
+    BoraOneSensorDescription(
+        key="oven_target_humidity",
+        translation_key="oven_target_humidity",
+        device_class=SensorDeviceClass.HUMIDITY,
+        native_unit_of_measurement=PERCENTAGE,
+        exists_fn=_is_oven,
+        value_fn=_oven("target_humidity"),
+    ),
+    BoraOneSensorDescription(
+        key="core_temperature",
+        translation_key="core_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        exists_fn=_is_oven,
+        value_fn=_oven("core_temperature"),
+    ),
+    BoraOneSensorDescription(
+        key="target_core_temperature",
+        translation_key="target_core_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        exists_fn=_is_oven,
+        value_fn=_oven("target_core_temperature"),
+    ),
+    BoraOneSensorDescription(
+        key="step_end",
+        translation_key="step_end",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        remaining_time=True,
+        exists_fn=_is_oven,
+        value_fn=_oven("step_remaining"),
+    ),
+    BoraOneSensorDescription(
+        key="program_end",
+        translation_key="program_end",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        remaining_time=True,
+        exists_fn=_is_oven,
+        value_fn=_oven("program_remaining"),
+    ),
+    BoraOneSensorDescription(
+        key="egg_timer_end",
+        translation_key="egg_timer_end",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        remaining_time=True,
+        exists_fn=_is_oven,
+        value_fn=_oven("egg_timer_remaining"),
+    ),
+    BoraOneSensorDescription(
+        key="program_progress",
+        translation_key="program_progress",
+        native_unit_of_measurement=PERCENTAGE,
+        exists_fn=_is_oven,
+        value_fn=_oven("program_progress"),
+    ),
+    BoraOneSensorDescription(
+        key="operating_hours",
+        translation_key="operating_hours",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        exists_fn=_is_oven,
+        value_fn=_oven("operating_hours"),
+    ),
+    BoraOneSensorDescription(
+        key="oven_filter_lifetime",
+        translation_key="filter_lifetime",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        exists_fn=_is_oven,
+        value_fn=_oven("filter_lifetime_raw"),
     ),
 )
 

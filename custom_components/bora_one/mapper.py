@@ -14,6 +14,9 @@ from .models import (
     Extractor,
     ExtractorMode,
     KeepWarmMode,
+    Oven,
+    OvenOperatingState,
+    OvenProgram,
     ZonePosition,
     ZoneState,
 )
@@ -36,6 +39,7 @@ PRODUCT_MODELS = {
     "m_pure": "M Pure",
     "x_pure_max": "X Pure Max",
     "m_pure_max": "M Pure Max",
+    "xbo": "X BO",
 }
 
 
@@ -137,7 +141,10 @@ def map_extractor(
 
 
 def offline_cooktop(
-    base: Cooktop, positions: Iterable[ZonePosition], has_extractor: bool
+    base: Cooktop,
+    positions: Iterable[ZonePosition],
+    has_extractor: bool,
+    is_oven: bool = False,
 ) -> Cooktop:
     """Return the state shown while Bluetooth is unreachable.
 
@@ -154,6 +161,7 @@ def offline_cooktop(
         online=False,
         zones={position: CookingZone(position=position) for position in positions},
         extractor=Extractor() if has_extractor else None,
+        oven=Oven() if is_oven else None,
     )
 
 
@@ -208,3 +216,75 @@ def map_cooktop(
             extractor_status, extractor_descriptor.get("power_levels", []), pure_settings
         )
     return cooktop
+
+
+def _program_name(name: str | None) -> str | None:
+    """Return the running programme's name; the oven reports a placeholder when idle."""
+    if not name or name.upper() == "NO_PROGRAM_IS_RUNNING":
+        return None
+    if name.isupper() and " " not in name:
+        # Built-in kinds come as identifiers (CLASSIC_PROGRAM); user favourites as text.
+        return name.replace("_", " ").capitalize()
+    return name
+
+
+def _positive(value: int | None) -> int | None:
+    return value if value is not None and value > 0 else None
+
+
+def map_oven_state(status: dict[str, Any], full: dict[str, Any] | None) -> Oven:
+    """Build an Oven from a decoded DeviceStatus and the optional full status."""
+    overview = status.get("overview") or {}
+    xbo = overview.get("xbo") or {}
+    core = xbo.get("core_temperature") or {}
+    state = status.get("operating_state")
+    program = overview.get("program")
+    oven = Oven(
+        turned_on=bool(status.get("turned_on")),
+        operating_state=(
+            OvenOperatingState(state)
+            if state in set(OvenOperatingState)
+            else OvenOperatingState.UNSPECIFIED
+        ),
+        program=OvenProgram(program) if program in set(OvenProgram) else OvenProgram.NONE,
+        program_name=_program_name(xbo.get("program_name")),
+        cooking_step=overview.get("cooking_step") or None,
+        current_temperature=overview.get("current_temperature"),
+        target_temperature=_positive(overview.get("target_temperature")),
+        current_humidity=overview.get("current_humidity"),
+        target_humidity=_positive(overview.get("target_humidity")),
+        core_temperature=core.get("current") or None,
+        target_core_temperature=core.get("target") or None,
+        step_remaining=_positive(overview.get("step_remaining")),
+        program_remaining=_positive(overview.get("program_remaining")),
+        door_open=overview.get("door_open") if overview else None,
+        filter_warning=xbo.get("filter_time_limit_warning") if xbo else None,
+        filter_lifetime_raw=xbo.get("remaining_filter_lifetime") if xbo else None,
+        operating_hours=status.get("operating_hours"),
+    )
+    if full and oven.is_running:
+        oven.program_progress = full.get("program_progress")
+    return oven
+
+
+def map_oven(
+    appliance_id: str, name: str, information: dict[str, Any], state: dict[str, Any]
+) -> Cooktop:
+    """Build the appliance model of a connected oven."""
+    status = state.get("oven") or {}
+    oven = map_oven_state(status, state.get("full"))
+    oven.egg_timer_remaining = _positive((state.get("egg_timer") or {}).get("remaining"))
+    product = information.get("product_name")
+    return Cooktop(
+        appliance_id=appliance_id,
+        name=name,
+        model=PRODUCT_MODELS.get(product, product) if product else None,
+        serial_number=information.get("fd") or None,
+        software_version=information.get("bundle_sw_version") or None,
+        hardware_version=None,
+        switched_off=not oven.turned_on,
+        paused=oven.operating_state is OvenOperatingState.PAUSED,
+        child_lock=bool((status.get("overview") or {}).get("child_lock")),
+        oven=oven,
+        raw={"information": information, "state": state},
+    )
