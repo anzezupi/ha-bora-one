@@ -147,13 +147,13 @@ oven's pairing mode.
 |---|---|---|
 | Status | sensor (enum) | off, standby, cooking, paused, error |
 | Programme | sensor (enum) | no programme, manual cooking, automatic cooking, special program, cleaning |
-| Programme name, Cooking step | sensor | as reported by the oven (e.g. `CombiSteam` for convection) |
+| Programme name, Cooking step | sensor | as reported by the oven (e.g. `CombiSteam` for convection), `—` without a programme |
 | Cooking chamber temperature / Target temperature | sensor (°C) | |
 | Cooking chamber humidity / Target humidity | sensor (%) | unknown for modes without humidity |
 | Core temperature / Target core temperature | sensor (°C) | core temperature probe |
 | Cooking step end, Programme end | sensor (timestamp) | only with a timer |
 | Egg timer end | sensor (timestamp) | egg timer set on the oven, if the firmware streams it |
-| Cooking step remaining, Programme remaining, Egg timer remaining | sensor | countdown as mm:ss (h:mm:ss from one hour) |
+| Cooking step remaining, Programme remaining, Egg timer remaining | sensor | countdown as mm:ss (h:mm:ss from one hour), `--:--` without a timer |
 | Programme progress | sensor (%) | read every 30 s while running |
 | Operating hours | sensor (h) | diagnostic |
 | Door | binary sensor (door) | firmware 01.08.009 never sends it: stays unknown |
@@ -161,6 +161,12 @@ oven's pairing mode.
 | Filter change, Odour filter lifetime | binary sensor / sensor | disabled by default: 01.08.009 reports a warning while the oven itself shows "good" |
 | Stop programme | button | stops the running programme, like StopCurrentDeviceFunction in the app |
 | Stop before end signal | switch (config, off by default) | stops a programme 2 s before its end: the oven then finishes without the end signal that rings until its screen is touched |
+
+While the oven is connected, values that do not apply right now (no
+programme, no timer, a mode without humidity) show `—`, `--:--` or 0 instead
+of "unknown", so an idle oven does not look as if readings were missing. Core
+temperature and the end-time sensors stay unknown without a probe or timer,
+because 0 °C or a made-up time would be wrong.
 
 The oven only accepts the stop command. Starting programmes, presets,
 favourites or `StartDevice` (`bs_sys.generic.control.v1.BsControlService`)
