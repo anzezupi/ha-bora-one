@@ -113,6 +113,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         self._demo_start = time.monotonic()
         self._closed = False
+        self.programme_result = "idle"
+        """idle, finished or stopped: how the last oven programme ended."""
         self.programme_end_listeners: list[Callable[[str], None]] = []
         """Called with "finished" or "stopped" when an oven programme ends."""
         self.stop_before_end_signal = False
@@ -485,6 +487,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self._fire(new, "switched_on")
         elif old.online and not new.online:
             self._fire(new, "switched_off")
+            self.programme_result = "idle"
         if not old.is_cooking and new.is_cooking:
             self._fire(new, "cooking_started")
         elif old.is_cooking and not new.is_cooking:
@@ -497,6 +500,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             and not new.oven.is_running
         ):
             reason = self._programme_end_reason(old.oven)
+            self.programme_result = reason
             self._fire(new, "programme_finished", reason=reason)
             for listener in list(self.programme_end_listeners):
                 listener(reason)

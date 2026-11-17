@@ -308,7 +308,9 @@ async def test_programme_end_event(
     oven_peer(peer, **RUNNING)
     await _setup(hass)
     event = f"event.{P}_programme_end"
+    result = f"sensor.{P}_programme_result"
     assert _state(hass, event) == "unknown"
+    assert _state(hass, result) == "running"
     fired = []
     hass.bus.async_listen("bora_one_event", lambda e: fired.append(e.data))
     idle = {"state": 1}
@@ -317,6 +319,7 @@ async def test_programme_end_event(
     peer.push(oven.STREAM_PATH, device_status(**idle))
     await hass.async_block_till_done()
     assert hass.states.get(event).attributes["event_type"] == "stopped"
+    assert _state(hass, result) == "stopped"
     assert {"type": "programme_finished", "reason": "stopped"}.items() <= fired[-1].items()
 
     # Runs to its end.
@@ -326,6 +329,11 @@ async def test_programme_end_event(
     await hass.async_block_till_done()
     assert hass.states.get(event).attributes["event_type"] == "finished"
     assert fired[-1]["reason"] == "finished"
+    assert _state(hass, result) == "finished"
+    # Stays until the next programme starts.
+    peer.push(oven.STREAM_PATH, device_status(**RUNNING))
+    await hass.async_block_till_done()
+    assert _state(hass, result) == "running"
 
 
 async def test_oven_switched_off(

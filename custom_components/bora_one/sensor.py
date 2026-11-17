@@ -385,6 +385,8 @@ async def async_setup_entry(
         for description in COOKTOP_SENSORS
         if description.exists_fn(coordinator)
     ]
+    if coordinator.is_oven and not coordinator.demo:
+        entities.append(BoraOneProgrammeResultSensor(coordinator))
     entities.extend(
         BoraOneZoneSensor(coordinator, position, description)
         for position in coordinator.positions
@@ -435,6 +437,32 @@ class BoraOneSensor(BoraOneEntity, _EndTimeSensor):
     def _handle_coordinator_update(self) -> None:
         self._update_value()
         super()._handle_coordinator_update()
+
+
+class BoraOneProgrammeResultSensor(BoraOneEntity, SensorEntity):
+    """Running, or how the last programme ended (finished / stopped).
+
+    Stays on finished or stopped until the next programme starts or the oven
+    switches off, so a dashboard shows what happened.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["idle", "running", "finished", "stopped"]
+    _attr_translation_key = "programme_result"
+
+    def __init__(self, coordinator: BoraOneCoordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, "programme_result")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the programme result."""
+        oven = self.cooktop.oven
+        if oven is None or not self.cooktop.online:
+            return None
+        if oven.is_running:
+            return "running"
+        return self.coordinator.programme_result
 
 
 class BoraOneZoneSensor(BoraOneZoneEntity, _EndTimeSensor):

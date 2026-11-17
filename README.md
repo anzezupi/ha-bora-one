@@ -161,6 +161,7 @@ oven's pairing mode.
 | Filter change, Odour filter lifetime | binary sensor / sensor | disabled by default: 01.08.009 reports a warning while the oven itself shows "good" |
 | Stop programme | button | stops the running programme, like StopCurrentDeviceFunction in the app |
 | Stop before end signal | switch (config, off by default) | stops a programme 2 s before its end: the oven then finishes without the end signal that rings until its screen is touched |
+| Programme result | sensor (enum) | `running`, then `finished` or `stopped` until the next programme starts or the oven switches off, `idle` before |
 | Programme end | event | `finished` (ran to its end, also when stopped just before by the switch above) or `stopped` (cancelled); use it in automations instead of the oven's end signal |
 
 While the oven is connected, values that do not apply right now (no

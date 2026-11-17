@@ -551,6 +551,15 @@
       },
       "egg_timer_remaining": {
         "name": "Egg timer remaining"
+      },
+      "programme_result": {
+        "name": "Programme result",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "finished": "Finished",
+          "stopped": "Stopped"
+        }
       }
     },
     "switch": {
