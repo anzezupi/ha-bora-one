@@ -301,6 +301,33 @@ async def test_countdown_and_stop_before_end(
     assert peer.requests.count(stop_path) == 1
 
 
+async def test_programme_end_event(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """The programme end event tells a finished programme from a cancelled one."""
+    oven_peer(peer, **RUNNING)
+    await _setup(hass)
+    event = f"event.{P}_programme_end"
+    assert _state(hass, event) == "unknown"
+    fired = []
+    hass.bus.async_listen("bora_one_event", lambda e: fired.append(e.data))
+    idle = {"state": 1}
+
+    # Cancelled with ten minutes left.
+    peer.push(oven.STREAM_PATH, device_status(**idle))
+    await hass.async_block_till_done()
+    assert hass.states.get(event).attributes["event_type"] == "stopped"
+    assert {"type": "programme_finished", "reason": "stopped"}.items() <= fired[-1].items()
+
+    # Runs to its end.
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 1}))
+    await hass.async_block_till_done()
+    peer.push(oven.STREAM_PATH, device_status(**idle))
+    await hass.async_block_till_done()
+    assert hass.states.get(event).attributes["event_type"] == "finished"
+    assert fired[-1]["reason"] == "finished"
+
+
 async def test_oven_switched_off(
     hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
 ) -> None:

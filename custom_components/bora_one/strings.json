@@ -565,6 +565,19 @@
       "stop_program": {
         "name": "Stop programme"
       }
+    },
+    "event": {
+      "programme_end": {
+        "name": "Programme end",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "finished": "Finished",
+              "stopped": "Stopped"
+            }
+          }
+        }
+      }
     }
   }
 }

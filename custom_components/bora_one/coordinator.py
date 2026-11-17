@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import logging
 import time
 
@@ -32,10 +33,12 @@ from .const import (
 from .demo import DEMO_POSITIONS, demo_snapshot
 from .device import BoraBleDevice, BoraOvenDevice, create_device
 from .mapper import map_cooktop, map_oven, offline_cooktop
-from .models import AssistProgram, Cooktop, ExtractorMode, ZonePosition, ZoneState
+from .models import AssistProgram, Cooktop, ExtractorMode, Oven, ZonePosition, ZoneState
 
 # Seconds before the end at which "stop before end signal" stops the programme.
 END_STOP_SECONDS = 2
+# A programme that ends with at most this much time left ran to its end.
+FINISHED_WITHIN_SECONDS = 5
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,6 +113,8 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         self._demo_start = time.monotonic()
         self._closed = False
+        self.programme_end_listeners: list[Callable[[str], None]] = []
+        """Called with "finished" or "stopped" when an oven programme ends."""
         self.stop_before_end_signal = False
         """Stop an oven programme just before it ends, so the end signal does not ring."""
         self._end_stop_sent = False
@@ -383,6 +388,24 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
                 self.hass, self.async_request_refresh(), "bora_one_connect"
             )
 
+    def _programme_end_reason(self, oven: Oven) -> str:
+        """Tell a programme that ran to its end from one that was cancelled."""
+        if self._end_stop_sent:
+            return "finished"
+        remaining = (
+            oven.program_remaining if oven.program_remaining is not None else oven.step_remaining
+        )
+        if remaining is not None and remaining <= FINISHED_WITHIN_SECONDS:
+            return "finished"
+        if (
+            remaining is None
+            and oven.target_core_temperature
+            and oven.core_temperature is not None
+            and oven.core_temperature >= oven.target_core_temperature - 1
+        ):
+            return "finished"
+        return "stopped"
+
     @callback
     def _maybe_stop_before_end(self, cooktop: Cooktop) -> None:
         oven = cooktop.oven
@@ -466,6 +489,17 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self._fire(new, "cooking_started")
         elif old.is_cooking and not new.is_cooking:
             self._fire(new, "cooking_finished")
+        if (
+            old.oven is not None
+            and old.oven.is_running
+            and new.online
+            and new.oven is not None
+            and not new.oven.is_running
+        ):
+            reason = self._programme_end_reason(old.oven)
+            self._fire(new, "programme_finished", reason=reason)
+            for listener in list(self.programme_end_listeners):
+                listener(reason)
 
         for position, zone in new.zones.items():
             if (prev := old.zones.get(position)) is None:
