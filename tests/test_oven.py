@@ -7,6 +7,7 @@ advertisement matches a real X BO (name "BORA X BO", manufacturer data 0x0B56
 
 from __future__ import annotations
 
+import re
 import struct
 from types import SimpleNamespace
 
@@ -230,6 +231,8 @@ async def test_oven_entities(
     assert _state(hass, f"sensor.{P}_target_temperature") == "0"
     assert _state(hass, f"sensor.{P}_programme_name") == "—"
     assert _state(hass, f"sensor.{P}_programme_remaining") == "--:--"
+    assert _state(hass, f"sensor.{P}_programme_end") == "—"
+    assert _state(hass, f"sensor.{P}_target_core_temperature") == "0"
 
 
 async def test_stop_program_button(
@@ -255,15 +258,15 @@ async def test_egg_timer(
     peer.extra_streams.add(oven.EGG_TIMER_STREAM)
     await _setup(hass)
     sensor = f"sensor.{P}_egg_timer_end"
-    assert _state(hass, sensor) == "unknown"
+    assert _state(hass, sensor) == "—"
 
     peer.push(oven.EGG_TIMER_STREAM, wire.uint(1, 300))
     await hass.async_block_till_done()
-    assert _state(hass, sensor) not in ("unknown", "unavailable")
+    assert re.fullmatch(r"\d\d:\d\d", _state(hass, sensor))
 
     peer.push(oven.EGG_TIMER_STREAM, b"")
     await hass.async_block_till_done()
-    assert _state(hass, sensor) == "unknown"
+    assert _state(hass, sensor) == "—"
 
 
 async def test_countdown_and_stop_before_end(
