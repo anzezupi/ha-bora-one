@@ -7,6 +7,7 @@ advertisement matches a real X BO (name "BORA X BO", manufacturer data 0x0B56
 
 from __future__ import annotations
 
+import re
 import struct
 from types import SimpleNamespace
 
@@ -227,7 +228,11 @@ async def test_oven_entities(
     await hass.async_block_till_done()
     assert _state(hass, f"sensor.{P}_status") == "standby"
     assert _state(hass, f"binary_sensor.{P}_door") == "unknown"
-    assert _state(hass, f"sensor.{P}_target_temperature") == "unknown"
+    assert _state(hass, f"sensor.{P}_target_temperature") == "0"
+    assert _state(hass, f"sensor.{P}_programme_name") == "—"
+    assert _state(hass, f"sensor.{P}_programme_remaining") == "--:--"
+    assert _state(hass, f"sensor.{P}_programme_end") == "—"
+    assert _state(hass, f"sensor.{P}_target_core_temperature") == "0"
 
 
 async def test_stop_program_button(
@@ -253,15 +258,78 @@ async def test_egg_timer(
     peer.extra_streams.add(oven.EGG_TIMER_STREAM)
     await _setup(hass)
     sensor = f"sensor.{P}_egg_timer_end"
-    assert _state(hass, sensor) == "unknown"
+    assert _state(hass, sensor) == "—"
 
     peer.push(oven.EGG_TIMER_STREAM, wire.uint(1, 300))
     await hass.async_block_till_done()
-    assert _state(hass, sensor) not in ("unknown", "unavailable")
+    assert re.fullmatch(r"\d\d:\d\d", _state(hass, sensor))
 
     peer.push(oven.EGG_TIMER_STREAM, b"")
     await hass.async_block_till_done()
-    assert _state(hass, sensor) == "unknown"
+    assert _state(hass, sensor) == "—"
+
+
+async def test_countdown_and_stop_before_end(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """Remaining times show as mm:ss; the switch stops the programme just before its end."""
+    oven_peer(peer, **RUNNING)
+    stop_path = oven.CONTROL_SERVICE + "StopCurrentDeviceFunction"
+    peer.status[stop_path] = b""
+    await _setup(hass)
+    assert _state(hass, f"sensor.{P}_cooking_step_remaining") == "10:00"
+    assert _state(hass, f"sensor.{P}_programme_remaining") == "25:00"
+
+    # Switch off: nothing is stopped at the end.
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 1}))
+    await hass.async_block_till_done()
+    assert _state(hass, f"sensor.{P}_programme_remaining") == "00:01"
+    assert stop_path not in peer.requests
+
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": f"switch.{P}_stop_before_end_signal"}, blocking=True
+    )
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 3}))
+    await hass.async_block_till_done()
+    assert stop_path not in peer.requests
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 2}))
+    await hass.async_block_till_done()
+    assert peer.requests.count(stop_path) == 1
+    # Only once per programme.
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 1}))
+    await hass.async_block_till_done()
+    assert peer.requests.count(stop_path) == 1
+
+
+async def test_programme_result(
+    hass: HomeAssistant, bluetooth: FakeBluetooth, peer: FakeBoraPeer
+) -> None:
+    """Programme result and event tell a finished programme from a cancelled one."""
+    oven_peer(peer, **RUNNING)
+    await _setup(hass)
+    result = f"sensor.{P}_programme_result"
+    assert _state(hass, result) == "running"
+    fired = []
+    hass.bus.async_listen("bora_one_event", lambda e: fired.append(e.data))
+    idle = {"state": 1}
+
+    # Cancelled with ten minutes left.
+    peer.push(oven.STREAM_PATH, device_status(**idle))
+    await hass.async_block_till_done()
+    assert _state(hass, result) == "stopped"
+    assert {"type": "programme_finished", "reason": "stopped"}.items() <= fired[-1].items()
+
+    # Runs to its end.
+    peer.push(oven.STREAM_PATH, device_status(**{**RUNNING, "program_remaining": 1}))
+    await hass.async_block_till_done()
+    peer.push(oven.STREAM_PATH, device_status(**idle))
+    await hass.async_block_till_done()
+    assert fired[-1]["reason"] == "finished"
+    assert _state(hass, result) == "finished"
+    # Stays until the next programme starts.
+    peer.push(oven.STREAM_PATH, device_status(**RUNNING))
+    await hass.async_block_till_done()
+    assert _state(hass, result) == "running"
 
 
 async def test_oven_switched_off(

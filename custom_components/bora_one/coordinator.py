@@ -32,7 +32,12 @@ from .const import (
 from .demo import DEMO_POSITIONS, demo_snapshot
 from .device import BoraBleDevice, BoraOvenDevice, create_device
 from .mapper import map_cooktop, map_oven, offline_cooktop
-from .models import AssistProgram, Cooktop, ExtractorMode, ZonePosition, ZoneState
+from .models import AssistProgram, Cooktop, ExtractorMode, Oven, ZonePosition, ZoneState
+
+# Seconds before the end at which "stop before end signal" stops the programme.
+END_STOP_SECONDS = 2
+# A programme that ends with at most this much time left ran to its end.
+FINISHED_WITHIN_SECONDS = 5
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,6 +112,11 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         )
         self._demo_start = time.monotonic()
         self._closed = False
+        self.programme_result = "idle"
+        """idle, finished or stopped: how the last oven programme ended."""
+        self.stop_before_end_signal = False
+        """Stop an oven programme just before it ends, so the end signal does not ring."""
+        self._end_stop_sent = False
         self._pairing_lost = False
         self._pairing_failures = 0
         self._first_pairing_failure = 0.0
@@ -315,6 +325,7 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             {p.value: (z.state.value, z.power_level) for p, z in new.zones.items()},
         )
         self._fire_events(new)
+        self._maybe_stop_before_end(new)
         # Not async_set_updated_data(): that reschedules the periodic refresh,
         # and with pushes every second the refresh (pause, locks, oven
         # programme progress) would never run.
@@ -376,6 +387,52 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
                 self.hass, self.async_request_refresh(), "bora_one_connect"
             )
 
+    def _programme_end_reason(self, oven: Oven) -> str:
+        """Tell a programme that ran to its end from one that was cancelled."""
+        if self._end_stop_sent:
+            return "finished"
+        remaining = (
+            oven.program_remaining if oven.program_remaining is not None else oven.step_remaining
+        )
+        if remaining is not None and remaining <= FINISHED_WITHIN_SECONDS:
+            return "finished"
+        if (
+            remaining is None
+            and oven.target_core_temperature
+            and oven.core_temperature is not None
+            and oven.core_temperature >= oven.target_core_temperature - 1
+        ):
+            return "finished"
+        return "stopped"
+
+    @callback
+    def _maybe_stop_before_end(self, cooktop: Cooktop) -> None:
+        oven = cooktop.oven
+        if oven is None or not oven.is_running:
+            self._end_stop_sent = False
+            return
+        remaining = (
+            oven.program_remaining if oven.program_remaining is not None else oven.step_remaining
+        )
+        if (
+            not self.stop_before_end_signal
+            or self._end_stop_sent
+            or remaining is None
+            or remaining > END_STOP_SECONDS
+        ):
+            return
+        self._end_stop_sent = True
+        _LOGGER.info("Stopping the oven programme %s s before its end", remaining)
+        self.config_entry.async_create_task(
+            self.hass, self._stop_quietly(), "bora_one_stop_before_end"
+        )
+
+    async def _stop_quietly(self) -> None:
+        try:
+            await self.async_stop_oven_program()
+        except HomeAssistantError as err:
+            _LOGGER.warning("Stopping the oven before its end signal failed: %s", err)
+
     async def async_stop_oven_program(self) -> None:
         """Stop the programme the oven is running."""
         device = self.device
@@ -427,10 +484,21 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             self._fire(new, "switched_on")
         elif old.online and not new.online:
             self._fire(new, "switched_off")
+            self.programme_result = "idle"
         if not old.is_cooking and new.is_cooking:
             self._fire(new, "cooking_started")
         elif old.is_cooking and not new.is_cooking:
             self._fire(new, "cooking_finished")
+        if (
+            old.oven is not None
+            and old.oven.is_running
+            and new.online
+            and new.oven is not None
+            and not new.oven.is_running
+        ):
+            reason = self._programme_end_reason(old.oven)
+            self.programme_result = reason
+            self._fire(new, "programme_finished", reason=reason)
 
         for position, zone in new.zones.items():
             if (prev := old.zones.get(position)) is None:

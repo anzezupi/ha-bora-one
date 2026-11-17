@@ -16,6 +16,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .coordinator import BoraOneConfigEntry, BoraOneCoordinator
 from .entity import BoraOneEntity, BoraOneZoneEntity, end_time
@@ -60,6 +61,8 @@ class BoraOneSensorDescription(SensorEntityDescription):
     exists_fn: Callable[[BoraOneCoordinator], bool] = lambda _: True
     remaining_time: bool = False
     """value_fn returns seconds remaining; expose as end timestamp."""
+    clock_text: bool = False
+    """With remaining_time: show the end as local HH:MM text, a dash when there is none."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -68,6 +71,30 @@ class BoraOneZoneSensorDescription(SensorEntityDescription):
 
     value_fn: Callable[[CookingZone], Any]
     remaining_time: bool = False
+
+
+# Shown by text sensors whose value does not apply right now (no programme,
+# no timer), so they do not read "unknown" as if a reading were missing.
+NOT_ACTIVE = "—"
+NO_COUNTDOWN = "--:--"
+
+
+def _text(attribute: str) -> Callable[[Cooktop], Any]:
+    def value(cooktop: Cooktop) -> Any:
+        if cooktop.oven is None:
+            return None
+        return getattr(cooktop.oven, attribute) or NOT_ACTIVE
+
+    return value
+
+
+def _countdown(seconds: int | None) -> str | None:
+    """Format a remaining time as mm:ss (h:mm:ss from one hour)."""
+    if seconds is None:
+        return NO_COUNTDOWN
+    minutes, secs = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes:02d}:{secs:02d}"
 
 
 def _has_extractor(coordinator: BoraOneCoordinator) -> bool:
@@ -85,6 +112,18 @@ def _is_oven(coordinator: BoraOneCoordinator) -> bool:
 def _oven(attr: str) -> Callable[[Cooktop], Any]:
     """Return a value function reading one Oven attribute."""
     return lambda c: getattr(c.oven, attr) if c.oven else None
+
+
+def _oven_or_zero(attr: str) -> Callable[[Cooktop], Any]:
+    """Like _oven, but 0 instead of unknown when the value does not apply right now."""
+
+    def value(cooktop: Cooktop) -> Any:
+        if cooktop.oven is None or not cooktop.online:
+            return None
+        reading = getattr(cooktop.oven, attr)
+        return 0 if reading is None else reading
+
+    return value
 
 
 COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
@@ -161,13 +200,13 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         key="oven_program_name",
         translation_key="oven_program_name",
         exists_fn=_is_oven,
-        value_fn=_oven("program_name"),
+        value_fn=_text("program_name"),
     ),
     BoraOneSensorDescription(
         key="oven_cooking_step",
         translation_key="oven_cooking_step",
         exists_fn=_is_oven,
-        value_fn=_oven("cooking_step"),
+        value_fn=_text("cooking_step"),
     ),
     BoraOneSensorDescription(
         key="oven_temperature",
@@ -184,7 +223,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         exists_fn=_is_oven,
-        value_fn=_oven("target_temperature"),
+        value_fn=_oven_or_zero("target_temperature"),
     ),
     BoraOneSensorDescription(
         key="oven_humidity",
@@ -193,7 +232,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         exists_fn=_is_oven,
-        value_fn=_oven("current_humidity"),
+        value_fn=_oven_or_zero("current_humidity"),
     ),
     BoraOneSensorDescription(
         key="oven_target_humidity",
@@ -201,7 +240,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         device_class=SensorDeviceClass.HUMIDITY,
         native_unit_of_measurement=PERCENTAGE,
         exists_fn=_is_oven,
-        value_fn=_oven("target_humidity"),
+        value_fn=_oven_or_zero("target_humidity"),
     ),
     BoraOneSensorDescription(
         key="core_temperature",
@@ -210,7 +249,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         exists_fn=_is_oven,
-        value_fn=_oven("core_temperature"),
+        value_fn=_oven_or_zero("core_temperature"),
     ),
     BoraOneSensorDescription(
         key="target_core_temperature",
@@ -218,29 +257,47 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         exists_fn=_is_oven,
-        value_fn=_oven("target_core_temperature"),
+        value_fn=_oven_or_zero("target_core_temperature"),
     ),
     BoraOneSensorDescription(
         key="step_end",
         translation_key="step_end",
-        device_class=SensorDeviceClass.TIMESTAMP,
         remaining_time=True,
+        clock_text=True,
         exists_fn=_is_oven,
         value_fn=_oven("step_remaining"),
     ),
     BoraOneSensorDescription(
         key="program_end",
         translation_key="program_end",
-        device_class=SensorDeviceClass.TIMESTAMP,
         remaining_time=True,
+        clock_text=True,
         exists_fn=_is_oven,
         value_fn=_oven("program_remaining"),
     ),
     BoraOneSensorDescription(
+        key="step_remaining",
+        translation_key="step_remaining",
+        exists_fn=_is_oven,
+        value_fn=lambda c: _countdown(c.oven.step_remaining) if c.oven else None,
+    ),
+    BoraOneSensorDescription(
+        key="program_remaining",
+        translation_key="program_remaining",
+        exists_fn=_is_oven,
+        value_fn=lambda c: _countdown(c.oven.program_remaining) if c.oven else None,
+    ),
+    BoraOneSensorDescription(
+        key="egg_timer_remaining",
+        translation_key="egg_timer_remaining",
+        exists_fn=_is_oven,
+        value_fn=lambda c: _countdown(c.oven.egg_timer_remaining) if c.oven else None,
+    ),
+    BoraOneSensorDescription(
         key="egg_timer_end",
         translation_key="egg_timer_end",
-        device_class=SensorDeviceClass.TIMESTAMP,
         remaining_time=True,
+        clock_text=True,
         exists_fn=_is_oven,
         value_fn=_oven("egg_timer_remaining"),
     ),
@@ -249,7 +306,7 @@ COOKTOP_SENSORS: tuple[BoraOneSensorDescription, ...] = (
         translation_key="program_progress",
         native_unit_of_measurement=PERCENTAGE,
         exists_fn=_is_oven,
-        value_fn=_oven("program_progress"),
+        value_fn=_oven_or_zero("program_progress"),
     ),
     BoraOneSensorDescription(
         key="operating_hours",
@@ -328,6 +385,8 @@ async def async_setup_entry(
         for description in COOKTOP_SENSORS
         if description.exists_fn(coordinator)
     ]
+    if coordinator.is_oven and not coordinator.demo:
+        entities.append(BoraOneProgrammeResultSensor(coordinator))
     entities.extend(
         BoraOneZoneSensor(coordinator, position, description)
         for position in coordinator.positions
@@ -362,15 +421,48 @@ class BoraOneSensor(BoraOneEntity, _EndTimeSensor):
         self._update_value()
 
     def _update_value(self) -> None:
-        self._attr_native_value = self._value(
-            self.entity_description.value_fn(self.cooktop),
-            self.entity_description.remaining_time,
-        )
+        raw = self.entity_description.value_fn(self.cooktop)
+        if self.entity_description.clock_text:
+            self._end = end_time(raw, self._end)
+            if self._end is not None:
+                self._attr_native_value = dt_util.as_local(self._end).strftime("%H:%M")
+            elif self.cooktop.oven is not None and self.cooktop.online:
+                self._attr_native_value = NOT_ACTIVE
+            else:
+                self._attr_native_value = None
+            return
+        self._attr_native_value = self._value(raw, self.entity_description.remaining_time)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         self._update_value()
         super()._handle_coordinator_update()
+
+
+class BoraOneProgrammeResultSensor(BoraOneEntity, SensorEntity):
+    """Running, or how the last programme ended (finished / stopped).
+
+    Stays on finished or stopped until the next programme starts or the oven
+    switches off, so a dashboard shows what happened.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["idle", "running", "finished", "stopped"]
+    _attr_translation_key = "programme_result"
+
+    def __init__(self, coordinator: BoraOneCoordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, "programme_result")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the programme result."""
+        oven = self.cooktop.oven
+        if oven is None or not self.cooktop.online:
+            return None
+        if oven.is_running:
+            return "running"
+        return self.coordinator.programme_result
 
 
 class BoraOneZoneSensor(BoraOneZoneEntity, _EndTimeSensor):

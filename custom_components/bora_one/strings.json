@@ -542,11 +542,32 @@
       },
       "egg_timer_end": {
         "name": "Egg timer end"
+      },
+      "step_remaining": {
+        "name": "Cooking step remaining"
+      },
+      "program_remaining": {
+        "name": "Programme remaining"
+      },
+      "egg_timer_remaining": {
+        "name": "Egg timer remaining"
+      },
+      "programme_result": {
+        "name": "Programme result",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "finished": "Finished",
+          "stopped": "Stopped"
+        }
       }
     },
     "switch": {
       "bluetooth_connection": {
         "name": "Allow Bluetooth connection"
+      },
+      "stop_before_end_signal": {
+        "name": "Stop before end signal"
       }
     },
     "button": {
