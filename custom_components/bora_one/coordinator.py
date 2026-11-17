@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 import logging
 import time
 
@@ -115,8 +114,6 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
         self._closed = False
         self.programme_result = "idle"
         """idle, finished or stopped: how the last oven programme ended."""
-        self.programme_end_listeners: list[Callable[[str], None]] = []
-        """Called with "finished" or "stopped" when an oven programme ends."""
         self.stop_before_end_signal = False
         """Stop an oven programme just before it ends, so the end signal does not ring."""
         self._end_stop_sent = False
@@ -502,8 +499,6 @@ class BoraOneCoordinator(DataUpdateCoordinator[Cooktop]):
             reason = self._programme_end_reason(old.oven)
             self.programme_result = reason
             self._fire(new, "programme_finished", reason=reason)
-            for listener in list(self.programme_end_listeners):
-                listener(reason)
 
         for position, zone in new.zones.items():
             if (prev := old.zones.get(position)) is None:
